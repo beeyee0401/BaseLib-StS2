@@ -2,7 +2,6 @@ using System.Reflection;
 using BaseLib.Abstracts;
 using Godot;
 using HarmonyLib;
-using MegaCrit.Sts2.Core.Entities.Characters;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Characters;
 using MegaCrit.Sts2.Core.Multiplayer.Game.Lobby;
@@ -20,7 +19,6 @@ internal sealed class NCustomCharacterSelectEntryButton : ICharacterSelectButton
     private static readonly FieldInfo? DelegateField = AccessTools.Field(typeof(NCharacterSelectButton), "_delegate");
     private static readonly FieldInfo? CharacterField = AccessTools.Field(typeof(NCharacterSelectButton), "_character");
     private static readonly FieldInfo? LockedField = AccessTools.Field(typeof(NCharacterSelectButton), "_isLocked");
-    private static readonly PlaceholderCharacter TemplateCharacter = new();
 
     private readonly NCharacterSelectScreen _screen;
     private readonly Action<NCustomCharacterSelectEntryButton> _onSelected;
@@ -135,38 +133,8 @@ internal sealed class NCustomCharacterSelectEntryButton : ICharacterSelectButton
 
     private void UpdateInteractionState()
     {
-        CharacterField?.SetValue(Button, LockSourceCharacter ?? TemplateCharacter);
+        CharacterField?.SetValue(Button, LockSourceCharacter ?? ModelDb.Character<Ironclad>());
         LockedField?.SetValue(Button, !Entry.UnlockedInCharacterSelect);
         ApplyVisuals();
-    }
-
-    private sealed class PlaceholderCharacter : CustomCharacterModel
-    {
-        private static CharacterModel Template => ModelDb.Character<Ironclad>();
-
-        public override List<(string, string)>? Localization => [];
-        public override bool HideFromVanillaCharacterSelect => true;
-        public override bool AllowInVanillaRandomCharacterSelect => false;
-        public override Color NameColor => Template.NameColor;
-        public override CharacterGender Gender => Template.Gender;
-        protected override CharacterModel? UnlocksAfterRunAs => null;
-        public override int StartingHp => Template.StartingHp;
-        public override int StartingGold => Template.StartingGold;
-        public override CardPoolModel CardPool => Template.CardPool;
-        public override RelicPoolModel RelicPool => Template.RelicPool;
-        public override PotionPoolModel PotionPool => Template.PotionPool;
-        public override IEnumerable<CardModel> StartingDeck => Template.StartingDeck;
-        public override IReadOnlyList<RelicModel> StartingRelics => Template.StartingRelics;
-        public override float AttackAnimDelay => Template.AttackAnimDelay;
-        public override float CastAnimDelay => Template.CastAnimDelay;
-        public override string? CustomCharacterSelectBg => Template.CharacterSelectBg;
-        public override string? CustomCharacterSelectIconPath => "res://images/packed/character_select/char_select_ironclad.png";
-        public override string? CustomCharacterSelectLockedIconPath => "res://images/packed/character_select/char_select_ironclad_locked.png";
-        public override string? CustomCharacterSelectTransitionPath => Template.CharacterSelectTransitionPath;
-
-        public override List<string> GetArchitectAttackVfx()
-        {
-            return [.. Template.GetArchitectAttackVfx()];
-        }
     }
 }
