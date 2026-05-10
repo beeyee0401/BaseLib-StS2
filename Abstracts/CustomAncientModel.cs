@@ -1,7 +1,6 @@
 ﻿using System.Text;
 using BaseLib.Patches.Content;
 using BaseLib.Utils;
-using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Ancients;
 using MegaCrit.Sts2.Core.Events;
@@ -58,7 +57,16 @@ public abstract class CustomAncientModel : AncientEventModel, ICustomModel, ILoc
             return _optionPools;
         }
     }
-    
+
+    /// <summary>
+    /// Resets option pools to avoid shared field references.
+    /// </summary>
+    protected override void AfterCloned()
+    {
+        base.AfterCloned();
+        _optionPools = null;
+    }
+
     public override IEnumerable<EventOption> AllPossibleOptions => 
         OptionPools.AllOptions.SelectMany(option => option.AllVariants.Select(relic => RelicOption(relic)));
     
