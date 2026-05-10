@@ -50,10 +50,10 @@ public static partial class SimpleLoc
         }
     }
 
-    [GeneratedRegex(@"(?<=^|[^/])\*(.+?)(?=$|[\s*.,|}])\*?")]
+    [GeneratedRegex(@"(?<=^|[^/])\*({.+?}|.+?(?=$|[\s*.,|}]))\*?")]
     private static partial Regex GoldHighlightRegex { get; }
 
-    [GeneratedRegex(@"(?<=^|[^/])\$(.+?)(?=$|[\s$.,|}])\$?")]
+    [GeneratedRegex(@"(?<=^|[^/])\$({.+?}|.+?(?=$|[\s$.,|}]))\$?")]
     static partial Regex BlueHighlightRegex { get; }
 
     [GeneratedRegex(@"({)([^:}.]+)([:}])")] private static partial Regex NormalVariableRegex { get; }
