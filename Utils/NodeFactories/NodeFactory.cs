@@ -411,6 +411,7 @@ public abstract class NodeFactory<T> : NodeFactory where T : Node, new()
             if (FlexibleStructure)
             {
                 //All named nodes use unique names, therefore exact paths are not important to match.
+                BaseLibMain.Logger.Debug("All named nodes use unique names; adding source directly as child to generated node");
                 target.AddChild(source);
                 source.Owner = target;
                 SetChildrenOwner(target, source);
@@ -418,6 +419,7 @@ public abstract class NodeFactory<T> : NodeFactory where T : Node, new()
             else
             {
                 //Transfer all nodes and set their owners.
+                BaseLibMain.Logger.Debug("Transferring all nodes from source to generated node and freeing source");
                 foreach (var child in source.GetChildren())
                 {
                     source.RemoveChild(child);
@@ -432,7 +434,6 @@ public abstract class NodeFactory<T> : NodeFactory where T : Node, new()
             
         //Verify existence of/create named nodes
         List<INodeInfo> uniqueNames = [];
-        Node placeholder = new();
         foreach (var named in NamedNodes)
         {
             if (named.UniqueName) uniqueNames.Add(named);
@@ -443,9 +444,7 @@ public abstract class NodeFactory<T> : NodeFactory where T : Node, new()
                 {
                     if (!named.IsValidType(node))
                     {
-                        node.ReplaceBy(placeholder);
                         node = ConvertNodeType(node, named.NodeType());
-                        placeholder.ReplaceBy(node);
                     }
 
                     if (named.MakeNameUnique)
@@ -489,9 +488,7 @@ public abstract class NodeFactory<T> : NodeFactory where T : Node, new()
             {
                 if (!missing.IsValidType(node))
                 {
-                    node.ReplaceBy(placeholder);
                     node = ConvertNodeType(node, missing.NodeType());
-                    placeholder.ReplaceBy(node);
                 }
 
                 node.UniqueNameInOwner = true;
@@ -502,18 +499,15 @@ public abstract class NodeFactory<T> : NodeFactory where T : Node, new()
                 GenerateNode(target, missing);
             }
         }
-        
-        placeholder.QueueFree();
     }
 
     /// <summary>
     /// This method should convert the given node into the target type, or call the base method if unsupported.
-    /// The given node should either be freed or incorporated as a child of the generated node.
+    /// ReplaceBy should be called on the given node, and then it should either have QueueFree called or
+    /// be incorporated as a child of the generated node.
     /// </summary>
-    /// <param name="node"></param>
-    /// <param name="targetType"></param>
-    /// <returns></returns>
-    /// <exception cref="InvalidOperationException"></exception>
+    /// <returns>The generated node.</returns>
+    /// <exception cref="InvalidOperationException">If conversion is not supported</exception>
     protected virtual Node ConvertNodeType(Node node, Type targetType)
     {
         throw new InvalidOperationException(

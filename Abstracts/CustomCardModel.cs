@@ -1,12 +1,12 @@
-using System.Collections.Generic;
+using BaseLib.Cards.Variables;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Localization.DynamicVars;
 using MegaCrit.Sts2.Core.Models;
-using System.Linq;
-using BaseLib.Patches;
 using BaseLib.Patches.Content;
+using MegaCrit.Sts2.Core.Entities.Creatures;
+using MegaCrit.Sts2.Core.ValueProps;
 
 namespace BaseLib.Abstracts;
 
@@ -83,6 +83,126 @@ public abstract class CustomCardModel : CardModel, ICustomModel, ILocalizationPr
     public virtual string? CustomPortraitPath => null;
     public virtual Texture2D? CustomPortrait => null;
     public virtual List<(string, string)>? Localization => null;
+    
+    
+    //Utility methods
+    /// <summary>
+    /// Returns the received calculated var and the base and extra variables that it needs.
+    /// Rather than use this method directly, you are suggested to use
+    /// MakeCalculatedVar, MakeCalculatedDamage, or MakeCalculatedBlock.
+    /// </summary>
+    public static IEnumerable<DynamicVar> FinishMakeCalculatedVar(CalculatedVar var, int baseVal, int bonusVal)
+    {
+        switch (var)
+        {
+            case CustomCalculatedVar:
+            case CustomCalculatedBlockVar:
+                yield return new DynamicVar($"{var.Name}Base", baseVal);
+                yield return new DynamicVar($"{var.Name}Extra", bonusVal);
+                break;
+            case CustomCalculatedDamageVar:
+                yield return new DynamicVar($"{var.Name}Base", baseVal);
+                yield return new CustomExtraDamageVar(var.Name, bonusVal);
+                break;
+            case CalculatedDamageVar:
+                yield return new CalculationBaseVar(baseVal);
+                yield return new ExtraDamageVar(bonusVal);
+                break;
+            default:
+                yield return new CalculationBaseVar(baseVal);
+                yield return new CalculationExtraVar(bonusVal);
+                break;
+        }
+
+        yield return var;
+    }
+    
+    /// <summary>
+    /// Returns the 3 variables needed for a calculated var. Use this when defining your card's variables like so:
+    /// <code>
+    /// CanonicalVars => [
+    ///     ..MakeCalculatedVar(5, (card, target) => bonus calc)
+    /// ]
+    /// </code>
+    /// </summary>
+    public static IEnumerable<DynamicVar> MakeCalculatedVar(string name, int baseVal, Func<CardModel, Creature?, decimal> bonus, int mult = 1)
+    {
+        return FinishMakeCalculatedVar(new CustomCalculatedVar(name).WithMultiplier(bonus), baseVal, mult);
+    }
+
+    /// <summary>
+    /// Makes a CalculatedDamageVar with the default name and an accompanying base and extra var.
+    /// <code>
+    /// CanonicalVars => [
+    ///     ..MakeCalculatedDamage(5, (card, target) => bonus calc)
+    /// ]
+    /// </code>
+    /// </summary>
+    /// <param name="baseVal">Base value</param>
+    /// <param name="bonus">Calculation for bonus.</param>
+    /// <param name="mult">Multiplier applied to result of calculation. Value of the "Extra" var.</param>
+    /// <param name="props">Move props. Affects behavior of damage/calculation.</param>
+    public static IEnumerable<DynamicVar> MakeCalculatedDamage(int baseVal, Func<CardModel, Creature?, decimal> bonus, 
+        int mult = 1, ValueProp props = ValueProp.Move)
+    {
+        return FinishMakeCalculatedVar(new CalculatedDamageVar(props).WithMultiplier(bonus), baseVal, mult);
+    }
+    
+    /// <summary>
+    /// Makes a CustomCalculatedDamageVar with a specified name and an accompanying base and extra var.
+    /// <code>
+    /// CanonicalVars => [
+    ///     ..MakeCalculatedDamage("Special", 5, (card, target) => bonus calc)
+    /// ]
+    /// </code>
+    /// </summary>
+    /// <param name="name">The calculated var's name. The base var's name is the same with "Base" added, and the extra var has "Extra" added.</param>
+    /// <param name="baseVal">Base value</param>
+    /// <param name="bonus">Calculation for bonus.</param>
+    /// <param name="mult">Multiplier applied to result of calculation. Value of the "Extra" var.</param>
+    /// <param name="props">Move props. Affects behavior of damage/calculation.</param>
+    public static IEnumerable<DynamicVar> MakeCalculatedDamage(string name, int baseVal, Func<CardModel, Creature?, decimal> bonus,
+        int mult = 1, ValueProp props = ValueProp.Move)
+    {
+        return FinishMakeCalculatedVar(new CustomCalculatedDamageVar(name, props).WithMultiplier(bonus), baseVal, mult);
+    }
+    
+    /// <summary>
+    /// Makes a CalculatedBlockVar with the default name and an accompanying base and extra var.
+    /// <code>
+    /// CanonicalVars => [
+    ///     ..MakeCalculatedBlock(5, (card, target) => bonus calc)
+    /// ]
+    /// </code>
+    /// </summary>
+    /// <param name="baseVal">Base value</param>
+    /// <param name="bonus">Calculation for bonus.</param>
+    /// <param name="mult">Multiplier applied to result of calculation. Value of the "Extra" var.</param>
+    /// <param name="props">Move properties. Default value should almost always be correct for Block.</param>
+    public static IEnumerable<DynamicVar> MakeCalculatedBlock(int baseVal, Func<CardModel, Creature?, decimal> bonus,
+        int mult = 1, ValueProp props = ValueProp.Move)
+    {
+        return FinishMakeCalculatedVar(new CalculatedBlockVar(props).WithMultiplier(bonus), baseVal, mult);
+    }
+    
+    /// <summary>
+    /// Makes a CustomCalculatedBlockVar with a specified name and an accompanying base and extra var.
+    /// <code>
+    /// CanonicalVars => [
+    ///     ..MakeCalculatedBlock("Special", 5, (card, target) => bonus calc)
+    /// ]
+    /// </code>
+    /// </summary>
+    /// <param name="name">The calculated var's name. The base var's name is the same with "Base" added, and the extra var has "Extra" added.</param>
+    /// <param name="baseVal">Base value</param>
+    /// <param name="bonus">Calculation for bonus.</param>
+    /// <param name="mult">Multiplier applied to result of calculation. Value of the "Extra" var.</param>
+    /// <param name="props">Move properties. Default value should almost always be correct for Block.</param>
+    public static IEnumerable<DynamicVar> MakeCalculatedBlock(string name, int baseVal, Func<CardModel, Creature?, decimal> bonus,
+        int mult = 1, ValueProp props = ValueProp.Move)
+    {
+        return FinishMakeCalculatedVar(new CustomCalculatedBlockVar(name, props).WithMultiplier(bonus), baseVal, mult);
+    }
 }
 
 [HarmonyPatch(typeof(CardModel), nameof(CardModel.Frame), MethodType.Getter)]

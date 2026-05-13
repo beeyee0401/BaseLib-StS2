@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
 using BaseLib.Hooks;
@@ -25,17 +26,24 @@ namespace BaseLib.Patches.Hooks;
 /// </summary>
 public static class MaxHandSizePatch
 {
+    static MethodInfo? MaxCardsInHandProperty = AccessTools.PropertyGetter(typeof(CardPile), "MaxCardsInHand");
+    
     /// <summary>
     /// The default max hand size constant used in the base game.
     /// </summary>
     public const int DefaultMaxHandSize = 10;
 
-    internal static readonly MethodInfo GetMaxHandSizeMethod = AccessTools.Method(typeof(MaxHandSizePatch), nameof(GetMaxHandSize));
+    internal static readonly MethodInfo GetMaxHandSizeFromBaseMethod = AccessTools.Method(typeof(MaxHandSizePatch), nameof(GetMaxHandSize), [typeof(Player), typeof(int)]);
 
     internal static bool IsDefaultMaxHandSizeConst(CodeInstruction ins)
     {
         return (ins.opcode == OpCodes.Ldc_I4_S && ins.operand is sbyte sb && sb == DefaultMaxHandSize)
                || (ins.opcode == OpCodes.Ldc_I4 && ins.operand is int i && i == DefaultMaxHandSize);
+    }
+    internal static bool IsBetaMaxHandSize(CodeInstruction ins)
+    {
+        return MaxCardsInHandProperty != null &&
+               ins.Calls(MaxCardsInHandProperty);
     }
 
     /// <summary>
@@ -43,23 +51,35 @@ public static class MaxHandSizePatch
     /// </summary>
     /// <param name="player">The player to calculate the max hand size for.</param>
     /// <returns>The calculated max hand size.</returns>
+    [Obsolete("Prefer to use GetMaxHandSize(player, CardPile.MaxCardsInHand) instead")]
     public static int GetMaxHandSize(Player player)
+    {
+        //Preparation for possibly more useful MaxCardsInHand property
+        return GetMaxHandSize(player, DefaultMaxHandSize);
+    }
+
+    /// <summary>
+    /// Calculates the max hand size for a given player by invoking all IMaxHandSizeModifier implementations.
+    /// </summary>
+    /// <param name="player">The player to calculate the max hand size for.</param>
+    /// <param name="baseLimit">The limit before max hand size modifiers are applied.</param>
+    /// <returns>The calculated max hand size.</returns>
+    public static int GetMaxHandSize(Player player, int baseLimit)
     {
         var runState = player.RunState ?? NullRunState.Instance;
         var combatState = BetaMainCompatibility.Creature_.CombatState.Get(player.Creature);
 
-        var amount = DefaultMaxHandSize;
+        var amount = baseLimit;
         var list = new List<IMaxHandSizeModifier>();
 
-        foreach (var modifier in BetaMainCompatibility.RunState.IterateHookListeners.Invoke<IEnumerable<AbstractModel>>(runState, combatState) ?? [])
+        foreach (var modifier in BetaMainCompatibility.RunState.IterateHookListeners.Invoke<IEnumerable<AbstractModel>>(runState, combatState)
+                                 ?? throw new InvalidOperationException("Failed to invoke IterateHookListeners properly"))
         {
             if (modifier is IMaxHandSizeModifier maxHandSizeModifier)
+            {
                 list.Add(maxHandSizeModifier);
-        }
-
-        foreach (var modifier in list)
-        {
-            amount = modifier.ModifyMaxHandSize(player, amount);
+                amount = maxHandSizeModifier.ModifyMaxHandSize(player, amount);
+            }
         }
 
         foreach (var modifier in list)
@@ -70,9 +90,9 @@ public static class MaxHandSizePatch
         return Math.Max(0, amount);
     }
 
-    internal static int GetMaxHandSizeFromCard(CardModel? card)
+    internal static int GetMaxHandSizeFromCard(CardModel? card, int baseAmount)
     {
-        return card?.Owner is Player player ? GetMaxHandSize(player) : DefaultMaxHandSize;
+        return card?.Owner is { } player ? GetMaxHandSize(player, baseAmount) : DefaultMaxHandSize;
     }
 }
 
@@ -81,17 +101,18 @@ public static class MaxHandSizePatch
 /// Changes the max hand size constant to a call to GetMaxHandSize(player).
 /// </summary>
 [HarmonyPatch(typeof(CardPileCmd), nameof(CardPileCmd.CheckIfDrawIsPossibleAndShowThoughtBubbleIfNot))]
-public static class CardPileCmd_CheckIfDrawIsPossibleAndShowThoughtBubbleIfNot_MaxHandSizePatch
+static class CardPileCmd_CheckIfDrawIsPossibleAndShowThoughtBubbleIfNot_MaxHandSizePatch
 {
     [HarmonyTranspiler]
     private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il, MethodBase original)
     {
         foreach (var ins in instructions)
         {
-            if (MaxHandSizePatch.IsDefaultMaxHandSizeConst(ins))
+            if (MaxHandSizePatch.IsDefaultMaxHandSizeConst(ins) || MaxHandSizePatch.IsBetaMaxHandSize(ins))
             {
                 yield return new CodeInstruction(OpCodes.Ldarg_0); // player
-                yield return new CodeInstruction(OpCodes.Call, MaxHandSizePatch.GetMaxHandSizeMethod);
+                yield return ins; //base value
+                yield return new CodeInstruction(OpCodes.Call, MaxHandSizePatch.GetMaxHandSizeFromBaseMethod);
                 continue;
             }
             yield return ins;
@@ -104,17 +125,18 @@ public static class CardPileCmd_CheckIfDrawIsPossibleAndShowThoughtBubbleIfNot_M
 /// Changes the max hand size constant to a call to GetMaxHandSize(player).
 /// </summary>
 [HarmonyPatch(typeof(CombatManager), nameof(CombatManager.SetupPlayerTurn))]
-public static class CombatManager_SetupPlayerTurn_MaxHandSizePatch
+static class CombatManager_SetupPlayerTurn_MaxHandSizePatch
 {
     [HarmonyTranspiler]
     private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il, MethodBase original)
     {
         foreach (var ins in instructions)
         {
-            if (MaxHandSizePatch.IsDefaultMaxHandSizeConst(ins))
+            if (MaxHandSizePatch.IsDefaultMaxHandSizeConst(ins) || MaxHandSizePatch.IsBetaMaxHandSize(ins))
             {
                 yield return new CodeInstruction(OpCodes.Ldarg_1); // player
-                yield return new CodeInstruction(OpCodes.Call, MaxHandSizePatch.GetMaxHandSizeMethod);
+                yield return ins; //base value
+                yield return new CodeInstruction(OpCodes.Call, MaxHandSizePatch.GetMaxHandSizeFromBaseMethod);
                 continue;
             }
             yield return ins;
@@ -127,17 +149,18 @@ public static class CombatManager_SetupPlayerTurn_MaxHandSizePatch
 /// Changes the max hand size constant to a call to GetMaxHandSize(player).
 /// </summary>
 [HarmonyPatch(typeof(CardConsoleCmd), nameof(CardConsoleCmd.Process))]
-public static class CardConsoleCmd_Process_MaxHandSizePatch
+static class CardConsoleCmd_Process_MaxHandSizePatch
 {
     [HarmonyTranspiler]
     private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il, MethodBase original)
     {
         foreach (var ins in instructions)
         {
-            if (MaxHandSizePatch.IsDefaultMaxHandSizeConst(ins))
+            if (MaxHandSizePatch.IsDefaultMaxHandSizeConst(ins) || MaxHandSizePatch.IsBetaMaxHandSize(ins))
             {
                 yield return new CodeInstruction(OpCodes.Ldarg_1); // issuingPlayer
-                yield return new CodeInstruction(OpCodes.Call, MaxHandSizePatch.GetMaxHandSizeMethod);
+                yield return ins; //base value
+                yield return new CodeInstruction(OpCodes.Call, MaxHandSizePatch.GetMaxHandSizeFromBaseMethod);
                 continue;
             }
             yield return ins;
@@ -150,14 +173,14 @@ public static class CardConsoleCmd_Process_MaxHandSizePatch
 /// Changes the max hand size constant to a call to GetMaxHandSize(player).
 /// </summary>
 [HarmonyPatch]
-public static class CardPileCmd_Draw_MaxHandSizePatch
+static class CardPileCmd_Draw_MaxHandSizePatch
 {
     static MethodInfo TargetMethod() => AccessTools.AsyncMoveNext(
         AccessTools.Method(typeof(CardPileCmd), nameof(CardPileCmd.Draw),
             [typeof(PlayerChoiceContext), typeof(decimal), typeof(Player), typeof(bool)]));
 
     [HarmonyTranspiler]
-    private static List<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il, MethodBase original)
+    private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
     {
         var code = instructions.ToList();
 
@@ -167,17 +190,18 @@ public static class CardPileCmd_Draw_MaxHandSizePatch
                 .ldfld(null).PredicateMatch(op => op is FieldInfo field && field.FieldType == typeof(Player)))
             .CopyMatch(out var loadPlayer);
 
-        for (var i = 0; i < code.Count; i++)
+        foreach (var ins in code)
         {
-            if (!MaxHandSizePatch.IsDefaultMaxHandSizeConst(code[i]))
+            if (MaxHandSizePatch.IsDefaultMaxHandSizeConst(ins) || MaxHandSizePatch.IsBetaMaxHandSize(ins))
+            {
+                foreach (var codeInstruction in loadPlayer.Select(ci => ci.Clone())) yield return codeInstruction; //player
+                yield return ins; //base value
+                yield return new CodeInstruction(OpCodes.Call, MaxHandSizePatch.GetMaxHandSizeFromBaseMethod);
                 continue;
+            }
 
-            code[i] = new CodeInstruction(OpCodes.Call, MaxHandSizePatch.GetMaxHandSizeMethod);
-            code.InsertRange(i, loadPlayer.Select(ci => ci.Clone()));
-            i += loadPlayer.Count;
+            yield return ins;
         }
-
-        return code;
     }
 }
 
@@ -186,14 +210,14 @@ public static class CardPileCmd_Draw_MaxHandSizePatch
 /// Changes the max hand size constant to a call to GetMaxHandSize(player).
 /// </summary>
 [HarmonyPatch]
-public static class CardPileCmd_Add_MaxHandSizePatch
+static class CardPileCmd_Add_MaxHandSizePatch
 {
     static MethodInfo TargetMethod() => AccessTools.AsyncMoveNext(
         AccessTools.Method(typeof(CardPileCmd), nameof(CardPileCmd.Add),
             [typeof(IEnumerable<CardModel>), typeof(CardPile), typeof(CardPilePosition), typeof(AbstractModel), typeof(bool)]));
 
     [HarmonyTranspiler]
-    private static List<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il, MethodBase original)
+    private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il, MethodBase original)
     {
         var code = instructions.ToList();
 
@@ -203,17 +227,18 @@ public static class CardPileCmd_Add_MaxHandSizePatch
                 .ldfld(null).PredicateMatch(op => op is FieldInfo field && field.FieldType == typeof(Player)))
             .CopyMatch(out var loadPlayer);
 
-        for (var i = 0; i < code.Count; i++)
+        foreach (var ins in code)
         {
-            if (!MaxHandSizePatch.IsDefaultMaxHandSizeConst(code[i]))
+            if (MaxHandSizePatch.IsDefaultMaxHandSizeConst(ins) || MaxHandSizePatch.IsBetaMaxHandSize(ins))
+            {
+                foreach (var codeInstruction in loadPlayer.Select(ci => ci.Clone())) yield return codeInstruction; //player
+                yield return ins; //base value
+                yield return new CodeInstruction(OpCodes.Call, MaxHandSizePatch.GetMaxHandSizeFromBaseMethod);
                 continue;
+            }
 
-            code[i] = new CodeInstruction(OpCodes.Call, MaxHandSizePatch.GetMaxHandSizeMethod);
-            code.InsertRange(i, loadPlayer.Select(ci => ci.Clone()));
-            i += loadPlayer.Count;
+            yield return ins;
         }
-
-        return code;
     }
 }
 
@@ -221,7 +246,7 @@ public static class CardPileCmd_Add_MaxHandSizePatch
 /// Patches Scrawl, Dredge, CrashLanding, and Pillage OnPlay hand-size constants to use GetMaxHandSize(player).
 /// </summary>
 [HarmonyPatch]
-public static class CardOnPlay_MaxHandSizePatch
+static class CardOnPlay_MaxHandSizePatch
 {
     static IEnumerable<MethodBase> TargetMethods()
     {
@@ -232,7 +257,7 @@ public static class CardOnPlay_MaxHandSizePatch
     }
 
     [HarmonyTranspiler]
-    private static List<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il, MethodBase original)
+    private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il, MethodBase original)
     {
         var code = instructions.ToList();
 
@@ -242,17 +267,18 @@ public static class CardOnPlay_MaxHandSizePatch
                 .ldfld(null).PredicateMatch(op => op is FieldInfo field && typeof(CardModel).IsAssignableFrom(field.FieldType)))
             .CopyMatch(out var loadCard);
 
-        for (var i = 0; i < code.Count; i++)
+        foreach (var ins in code)
         {
-            if (!MaxHandSizePatch.IsDefaultMaxHandSizeConst(code[i]))
+            if (MaxHandSizePatch.IsDefaultMaxHandSizeConst(ins) || MaxHandSizePatch.IsBetaMaxHandSize(ins))
+            {
+                foreach (var codeInstruction in loadCard.Select(ci => ci.Clone())) yield return codeInstruction; //player
+                yield return ins; //base value
+                yield return new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(MaxHandSizePatch), nameof(MaxHandSizePatch.GetMaxHandSizeFromCard)));
                 continue;
+            }
 
-            code[i] = new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(MaxHandSizePatch), nameof(MaxHandSizePatch.GetMaxHandSizeFromCard)));
-            code.InsertRange(i, loadCard.Select(ci => ci.Clone()));
-            i += loadCard.Count;
+            yield return ins;
         }
-
-        return code;
     }
 }
 
@@ -261,7 +287,7 @@ public static class CardOnPlay_MaxHandSizePatch
 /// Let the shortcuts return releaseCard(Arrow Down) input action intead of null when the index is out of bounds.
 /// </summary>
 [HarmonyPatch(typeof(NPlayerHand), nameof(NPlayerHand.StartCardPlay))]
-public static class NPlayerHandStartCardPlayShortcutSafePatch
+static class NPlayerHandStartCardPlayShortcutSafePatch
 {
     static StringName GetShortcutOrDefault(NPlayerHand hand, int idx)
     {
@@ -298,7 +324,7 @@ public static class NPlayerHandStartCardPlayShortcutSafePatch
 /// Patches HandPosHelper.GetPosition, GetAngle, and GetScale to infer hand size from the position of the cards when the hand size exceeds 10.
 /// </summary>
 [HarmonyPatch]
-public static class HandPosHelperGetPositionPatch
+static class HandPosHelperGetPositionPatch
 {
     private static float GetInferredHalfSpread(int handSize)
     {
@@ -355,7 +381,7 @@ public static class HandPosHelperGetPositionPatch
     [HarmonyPrefix]
     static bool GetScale(int handSize, ref Vector2 __result)
     {
-        if (handSize <= 10)
+        if (handSize <= MaxHandSizePatch.DefaultMaxHandSize)
             return true;
 
         var scalar = 0.64f * MathF.Pow(0.95f, handSize - 11);

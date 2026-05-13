@@ -122,7 +122,7 @@ internal class NEnergyCounterFactory : NodeFactory<NEnergyCounter>
 
         rectControl.Name = n.Name;
         
-        n.GetParent()?.RemoveChild(n);
+        n.ReplaceBy(rectControl);
         n.Name = "_" + n.Name;
         rectControl.AddChild(n);
 
@@ -149,6 +149,8 @@ internal class NEnergyCounterFactory : NodeFactory<NEnergyCounter>
 
         if (source is GpuParticles2D singleParticle)
         {
+            source.ReplaceBy(container);
+            
             container.AddChild(singleParticle);
             singleParticle.Owner = container;
             SetParticles(container);
@@ -157,7 +159,7 @@ internal class NEnergyCounterFactory : NodeFactory<NEnergyCounter>
 
         if (source != null)
         {
-            source.GetParent()?.RemoveChild(source);
+            source.ReplaceBy(container);
             container.AddChild(source);
         }
 
@@ -289,7 +291,8 @@ internal class NEnergyCounterFactory : NodeFactory<NEnergyCounter>
                 label.MaxFontSize = Math.Max(36, sourceLabel.GetThemeFontSize(ThemeConstants.Label.FontSize, "Label"));
             }
             
-            source.Free();
+            source.ReplaceBy(label);
+            source.QueueFree();
             return label;
         }
 

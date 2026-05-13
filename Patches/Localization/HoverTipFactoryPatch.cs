@@ -15,12 +15,13 @@ public static class StaticHoverTipPatch
     {
         if (!CustomEnums.GeneratedCustomEnumEntries.TryGetValue(typeof(StaticHoverTip), out var values))
             return true;
-        if (!values.TryGetValue((int)tip, out var name))
+        if (!values.TryGetValue((int)tip, out var entry))
             return true;
-
-        var slugName = StringHelper.Slugify(name);
-        var title = new LocString("static_hover_tips", slugName + ".title");
-        var description = new LocString("static_hover_tips", slugName + ".description");
+        
+        var slugName = StringHelper.Slugify(entry.Name);
+        var prefix = entry.Prefix;
+        var title = new LocString("static_hover_tips", prefix + slugName + ".title");
+        var description = new LocString("static_hover_tips", prefix + slugName + ".description");
         foreach (DynamicVar var in vars)
         {
             title.Add(var);

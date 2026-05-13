@@ -22,7 +22,7 @@ public class CustomCalculatedVar : CalculatedVar
         
     }
 
-    protected virtual decimal CalculateCustom(Creature? target)
+    public virtual decimal CalculateCustom(Creature? target)
     {
         switch (_owner)
         {

@@ -22,7 +22,6 @@ public partial class NHorizontalScrollContainer : Control
         setupPositionAndSize(container);
         
         container.ScrollContents = contents;
-
         return container;
     }
     
@@ -55,28 +54,35 @@ public partial class NHorizontalScrollContainer : Control
         ProcessScrollEvent(inputEvent);
     }
     
+    
     public override void _Input(InputEvent inputEvent)
     {
-        if (!IsVisibleInTree())
-            return;
+        if (!IsVisibleInTree()) return;
         var focus = GetViewport()?.GuiGetFocusOwner();
-        
-        if (focus != null && focus != this)
-            return;
-        ProcessControllerEvent(inputEvent);
+        if (focus == null || !IsAncestorOf(focus)) return;
+        if (inputEvent.IsActionPressed(MegaInput.left) || inputEvent.IsActionPressed(MegaInput.right))
+            GetViewport().SetInputAsHandled();
+    }
+    
+    public void InitFocusScrolling()
+    {
+        foreach (var child in ScrollContents?.GetChildren().OfType<Control>() ?? Enumerable.Empty<Control>())
+        {
+            var c = child;
+            c.FocusEntered += () =>
+            {
+                var left = c.Position.X;
+                var right = left + c.Size.X;
+                var viewWidth = Size.X;
+                var current = ScrollPosition;
+                if (left + current < 0f)
+                    TargetPosition = -left;
+                else if (right + current > viewWidth)
+                    TargetPosition = viewWidth - right;
+            };
+        }
     }
 
-    public void ProcessControllerEvent(InputEvent inputEvent)
-    {
-        if (inputEvent.IsActionPressed(MegaInput.left))
-        {
-            _targetDragPosX += _controllerScrollAmount;
-        }
-        else if (inputEvent.IsActionPressed(MegaInput.right))
-        {
-            _targetDragPosX -= _controllerScrollAmount;
-        }
-    }
     
     public void ProcessMouseEvent(InputEvent inputEvent)
     {

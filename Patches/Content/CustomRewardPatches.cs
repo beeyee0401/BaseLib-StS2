@@ -1,5 +1,6 @@
 using BaseLib;
 using BaseLib.Abstracts;
+using BaseLib.Patches.Content;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Rewards;
@@ -16,11 +17,10 @@ internal static class CustomRewardPatches
     {
         if (_RewardTypeDeserializers.ContainsKey(type))
         {
-            BaseLibMain.Logger.Error($"Registering multiple rewards of the same type ({type}) is not supported");
             throw new NotSupportedException($"Registering multiple rewards of the same type ({type}) is not supported");
         }
 
-        BaseLibMain.Logger.Info($"Registering RewardType {nameof(type)}");
+        BaseLibMain.Logger.Info($"Registering RewardType {CustomEnums.EnumName<RewardType>((int)type)}");
         _RewardTypeDeserializers.Add(type, deserializer);
     }
 
@@ -28,16 +28,16 @@ internal static class CustomRewardPatches
     [HarmonyPrefix]
     public static bool FromSerializablePrefix(SerializableReward save, Player player, ref Reward __result)
     {
-        if (_RewardTypeDeserializers.Keys.Contains(save.RewardType))
+        if (_RewardTypeDeserializers.ContainsKey(save.RewardType))
         {
-            BaseLibMain.Logger.Debug($"Found RewardType {save.RewardType} ({(int) save.RewardType}) in registry from mod {_RewardTypeDeserializers[save.RewardType].Method.GetType().Assembly}");
+            BaseLibMain.Logger.Info($"Found RewardType {CustomEnums.EnumName<RewardType>((int)save.RewardType)} in registry from mod {_RewardTypeDeserializers[save.RewardType].GetType().Assembly}");
 
             var method = _RewardTypeDeserializers[save.RewardType];
             __result = method.Invoke(save, player);
             return false;
         }
 
-        BaseLibMain.Logger.Debug($"No CustomReward found for RewardType {save.RewardType}, proceeding to vanilla method");
+        BaseLibMain.Logger.Warn($"No CustomReward found for RewardType {save.RewardType}, proceeding to basegame method");
         return true;
     }
 }

@@ -278,9 +278,12 @@ public abstract class ConstructedCardModel(
         {
             case CustomCalculatedVar:
             case CustomCalculatedBlockVar:
-            case CustomCalculatedDamageVar:
                 _constructedDynamicVars.Add(new DynamicVar($"{var.Name}Base", baseVal).WithUpgrade(upgrade));
                 _constructedDynamicVars.Add(new DynamicVar($"{var.Name}Extra", multVal).WithUpgrade(bonusUpgrade));
+                break;
+            case CustomCalculatedDamageVar:
+                _constructedDynamicVars.Add(new DynamicVar($"{var.Name}Base", baseVal).WithUpgrade(upgrade));
+                _constructedDynamicVars.Add(new CustomExtraDamageVar(var.Name, multVal).WithUpgrade(bonusUpgrade));
                 break;
             case CalculatedDamageVar:
                 _constructedDynamicVars.Add(new CalculationBaseVar(baseVal).WithUpgrade(upgrade));

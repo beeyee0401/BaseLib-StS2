@@ -1,7 +1,6 @@
 ﻿using System.Text;
 using BaseLib.Patches.Content;
 using BaseLib.Utils;
-using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Ancients;
 using MegaCrit.Sts2.Core.Events;
@@ -45,6 +44,7 @@ public abstract class CustomAncientModel : AncientEventModel, ICustomModel, ILoc
     /// If there is 1 pool, all ancient options will be chosen randomly from this pool.
     /// With 2 pools, the first two options will use the first pool and the last option will use the second pool.
     /// With 3 pools, each option will use its own pool.
+    /// You can give relics spawn conditions by calling AddCustomAncientSpawnCondition in your relic's constructor.
     /// </summary>
     protected abstract OptionPools MakeOptionPools { get; }
 
@@ -57,13 +57,22 @@ public abstract class CustomAncientModel : AncientEventModel, ICustomModel, ILoc
             return _optionPools;
         }
     }
-    
+
+    /// <summary>
+    /// Resets option pools to avoid shared field references.
+    /// </summary>
+    protected override void AfterCloned()
+    {
+        base.AfterCloned();
+        _optionPools = null;
+    }
+
     public override IEnumerable<EventOption> AllPossibleOptions => 
         OptionPools.AllOptions.SelectMany(option => option.AllVariants.Select(relic => RelicOption(relic)));
     
     protected override IReadOnlyList<EventOption> GenerateInitialOptions()
     {
-        var options = OptionPools.Roll(Rng, Owner!.RunState);
+        var options = OptionPools.Roll(Rng, this);
         return options.Select(option => RelicOption(option.ModelForOption)).ToList();
     }
     

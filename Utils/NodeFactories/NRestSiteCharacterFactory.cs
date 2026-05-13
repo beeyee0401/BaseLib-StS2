@@ -110,11 +110,16 @@ internal class NRestSiteCharacterFactory : NodeFactory<NRestSiteCharacter>
     {
         if (targetType == typeof(NSelectionReticle))
         {
-            if (node is not Control control) return base.ConvertNodeType(node, targetType);
+            if (node is not Control control)
+            {
+                return base.ConvertNodeType(node, targetType);
+            }
             
             var reticle = SceneHelper.Instantiate<NSelectionReticle>("ui/selection_reticle");
             reticle.Name = control.Name;
             CopyControlProperties(reticle, control);
+            control.ReplaceBy(reticle);
+            control.QueueFree();
             return reticle;
         }
 
@@ -125,12 +130,16 @@ internal class NRestSiteCharacterFactory : NodeFactory<NRestSiteCharacter>
                 || marker.Name.Equals("ThoughtBubbleRight")
                 || marker.Name.Equals("ControlRoot"))
             {
-                return new Control
+                var control = new Control
                 {
                     Name = marker.Name,
                     Size = Vector2.Zero,
                     Position = marker.Position,
                 };
+
+                marker.ReplaceBy(control);
+                marker.QueueFree();
+                return control;
             }
             throw new InvalidOperationException(
                 $"Marker2D can only be converted to Control for 'ControlRoot', 'ThoughtBubbleLeft', and 'ThoughtBubbleRight' in NRestSiteCharacter, not for '{marker.Name}'");

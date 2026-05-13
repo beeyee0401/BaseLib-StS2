@@ -1,4 +1,5 @@
 using BaseLib.Extensions;
+using BaseLib.Patches.Features;
 using MegaCrit.Sts2.Core.CardSelection;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Commands.Builders;
@@ -69,27 +70,46 @@ public static class CommonActions
     public static AttackCommand CardAttack(CardModel card, Creature? target, decimal damage, int hitCount = 1, string? vfx = null, string? sfx = null, string? tmpSfx = null)
     {
         AttackCommand cmd = DamageCmd.Attack(damage).WithHitCount(hitCount).FromCard(card);
-        
-        switch (card.TargetType)
-        {
-            case TargetType.AnyEnemy:
-                if (target == null) return cmd;
-                cmd.Targeting(target);
-                break;
-            case TargetType.AllEnemies:
-                var combatStateA = BetaMainCompatibility.CardModel_.CombatState.Get(card);
-                if (combatStateA == null) return cmd;
-                BetaMainCompatibility.AttackCommand_.TargetingAllOpponents.Invoke(cmd, combatStateA);
-                break;
-            case TargetType.RandomEnemy:
-                var combatStateB = BetaMainCompatibility.CardModel_.CombatState.Get(card);
-                if (combatStateB == null) return cmd;
-                BetaMainCompatibility.AttackCommand_.TargetingRandomOpponents.Invoke(cmd, combatStateB, true);
-                break;
-            default:
-                throw new Exception($"Unsupported AttackCommand target type {card.TargetType} for card {card.Title}");
-        }
 
+
+        if (CustomTargetType.IsCustomSingleTargetType(card.TargetType))
+        {
+            if (target == null) return cmd;
+            cmd.Targeting(target);
+        }
+        else if (CustomTargetType.IsCustomMultiTargetType(card.TargetType))
+        {
+            var state = BetaMainCompatibility.CardModel_.WrappedCombatState(card);
+            if (state == null) return cmd;
+            var targets = state.Creatures.Where(c => CustomTargetType.CanMultiTarget(card.TargetType, c));
+            cmd.TargetingFiltered(targets);
+        }
+        else
+        {
+            switch (card.TargetType)
+            {
+                case TargetType.AnyEnemy:
+                    if (target == null) return cmd;
+                    cmd.Targeting(target);
+                    break;
+                case TargetType.AllEnemies:
+                    var combatStateA = BetaMainCompatibility.CardModel_.CombatState.Get(card);
+                    if (combatStateA == null) return cmd;
+                    BetaMainCompatibility.AttackCommand_.TargetingAllOpponents.Invoke(cmd, combatStateA);
+                    break;
+                case TargetType.RandomEnemy:
+                    var combatStateB = BetaMainCompatibility.CardModel_.CombatState.Get(card);
+                    if (combatStateB == null) return cmd;
+                    BetaMainCompatibility.AttackCommand_.TargetingRandomOpponents.Invoke(cmd, combatStateB, true);
+                    break;
+                default:
+                    throw new Exception($"Unsupported AttackCommand target type {card.TargetType} for card {card.Title}");
+            }
+
+        }
+      
+     
+        
         if (vfx != null || sfx != null || tmpSfx != null) cmd.WithHitFx(vfx: vfx, sfx: sfx, tmpSfx: tmpSfx);
 
         return cmd;
@@ -110,24 +130,40 @@ public static class CommonActions
     {
         AttackCommand cmd = DamageCmd.Attack(calculatedDamage).WithHitCount(hitCount).FromCard(card);
         
-        switch (card.TargetType)
+        if (CustomTargetType.IsCustomSingleTargetType(card.TargetType))
         {
-            case TargetType.AnyEnemy:
-                if (target == null) return cmd;
-                cmd.Targeting(target);
-                break;
-            case TargetType.AllEnemies:
-                var combatStateA = BetaMainCompatibility.CardModel_.CombatState.Get(card);
-                if (combatStateA == null) return cmd;
-                BetaMainCompatibility.AttackCommand_.TargetingAllOpponents.Invoke(cmd, combatStateA);
-                break;
-            case TargetType.RandomEnemy:
-                var combatStateB = BetaMainCompatibility.CardModel_.CombatState.Get(card);
-                if (combatStateB == null) return cmd;
-                BetaMainCompatibility.AttackCommand_.TargetingRandomOpponents.Invoke(cmd, combatStateB, true);
-                break;
-            default:
-                throw new Exception($"Unsupported AttackCommand target type {card.TargetType} for card {card.Title}");
+            if (target == null) return cmd;
+            cmd.Targeting(target);
+        }
+        else if (CustomTargetType.IsCustomMultiTargetType(card.TargetType))
+        {
+            var state = BetaMainCompatibility.CardModel_.WrappedCombatState(card);
+            if (state == null) return cmd;
+            var targets = state.Creatures.Where(c =>  CustomTargetType.CanMultiTarget(card.TargetType, c));
+            cmd.TargetingFiltered(targets);
+        }
+        else
+        {
+            switch (card.TargetType)
+            {
+                case TargetType.AnyEnemy:
+                    if (target == null) return cmd;
+                    cmd.Targeting(target);
+                    break;
+                case TargetType.AllEnemies:
+                    var combatStateA = BetaMainCompatibility.CardModel_.CombatState.Get(card);
+                    if (combatStateA == null) return cmd;
+                    BetaMainCompatibility.AttackCommand_.TargetingAllOpponents.Invoke(cmd, combatStateA);
+                    break;
+                case TargetType.RandomEnemy:
+                    var combatStateB = BetaMainCompatibility.CardModel_.CombatState.Get(card);
+                    if (combatStateB == null) return cmd;
+                    BetaMainCompatibility.AttackCommand_.TargetingRandomOpponents.Invoke(cmd, combatStateB, true);
+                    break;
+                default:
+                    throw new Exception(
+                        $"Unsupported AttackCommand target type {card.TargetType} for card {card.Title}");
+            }
         }
 
         if (vfx != null || sfx != null || tmpSfx != null) cmd.WithHitFx(vfx: vfx, sfx: sfx, tmpSfx: tmpSfx);
@@ -141,7 +177,18 @@ public static class CommonActions
     /// <returns></returns>
     public static async Task<decimal> CardBlock(CardModel card, CardPlay? play)
     {
-        return await CardBlock(card, card.DynamicVars.Block, play);
+        if (card.DynamicVars.TryGetValue(BlockVar.defaultName, out var blockVar))
+        {
+            return await CardBlock(card, blockVar, play);
+        }
+        else if (card.DynamicVars.TryGetValue(CalculatedBlockVar.defaultName, out blockVar))
+        {
+            return await CardBlock(card, blockVar, play);
+        }
+
+        throw new InvalidOperationException(
+            $"No valid block var found in card {card.GetType()} for CommonActions.CardBlock; define a block var or " +
+            "pass a variable in manually.");
     }
 
     /// <summary>

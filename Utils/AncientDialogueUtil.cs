@@ -8,6 +8,8 @@ public static class AncientDialogueUtil
 {
     private const string ArchitectKey = "THE_ARCHITECT";
     private const string AttackKey = "-attack";
+    private const string StartAttackKey = "-endattack";
+    private const string EndAttackKey = "-startattack";
     private const string VisitIndexKey = "-visit";
     
     public static string SfxPath(string dialogueLoc) =>
@@ -63,18 +65,21 @@ public static class AncientDialogueUtil
 
             log?.AppendLine($" with {sfxPaths.Count} lines");
 
-            var attackers = ArchitectAttackers.None;
-            if (isArchitect)
-            {
-                attackers = ArchitectAttackers.Architect;
-                var attackString = LocString.GetIfExists(locTable, $"{baseKey}{index}{AttackKey}");
-                if (Enum.TryParse(attackString?.GetRawText(), true, out ArchitectAttackers result)) attackers = result;
-            }
+            var startAttackers = ArchitectAttackers.None;
+            var endAttackers = ArchitectAttackers.Architect;
+            
+            var attackString = LocString.GetIfExists(locTable, $"{baseKey}{index}{AttackKey}");
+            if (Enum.TryParse(attackString?.GetRawText(), true, out ArchitectAttackers result)) endAttackers = result;
+            attackString = LocString.GetIfExists(locTable, $"{baseKey}{index}{StartAttackKey}");
+            if (Enum.TryParse(attackString?.GetRawText(), true, out result)) startAttackers = result;
+            attackString = LocString.GetIfExists(locTable, $"{baseKey}{index}{EndAttackKey}");
+            if (Enum.TryParse(attackString?.GetRawText(), true, out result)) endAttackers = result;
             
             dialogues.Add(new AncientDialogue(sfxPaths.ToArray())
             {
                 VisitIndex = visitIndex,
-                EndAttackers = attackers
+                StartAttackers = startAttackers,
+                EndAttackers = endAttackers
             });
             ++index;
         }

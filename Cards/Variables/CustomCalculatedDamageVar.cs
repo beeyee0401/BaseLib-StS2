@@ -26,7 +26,7 @@ public class CustomCalculatedDamageVar : CalculatedDamageVar
         _nameSetter?.Invoke(this, name);
     }
 
-    protected virtual decimal CalculateCustom(Creature? target)
+    public virtual decimal CalculateCustom(Creature? target)
     {
         switch (_owner)
         {

@@ -20,9 +20,9 @@
         <PackageId>Alchyr.Sts2.BaseLib</PackageId>
         <Title>BaseLib-StS2</Title>
         <Description>Mod for Slay the Spire 2 providing utilities and features for other mods.</Description>
-        <Version>3.1.2</Version>
+        <Version>3.1.3</Version>
         <Authors>Alchyr</Authors>
-        <PackageReleaseNotes>Beta branch compatibility, fix AnyPlayer target patch (for main branch), add scrolling to Custom Run character select</PackageReleaseNotes>
+        <PackageReleaseNotes>basic two amount powers, custom targeting (CustomTargetType), basic CustomRestSiteOption for setting custom image path, fixes/improvements to godot animation support, adjust node conversion to fix some issues, fix maxhandsize patch on beta, calculated var defining shortcuts, custom reward, swap customancient can spawn to check a custom method</PackageReleaseNotes>
         <PackageTags>c#</PackageTags>
         <NoWarn>$(NoWarn);NU5128;MSB3270</NoWarn>
 
@@ -46,6 +46,10 @@
         </Reference>
         <Reference Include="sts2">
             <HintPath>$(Sts2DataDir)/sts2.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="SmartFormat">
+            <HintPath>$(Sts2DataDir)/SmartFormat.dll</HintPath>
             <Private>false</Private>
         </Reference>
         <PackageReference Include="Krafs.Publicizer" Version="2.3.0" PrivateAssets="All"/>

@@ -71,19 +71,12 @@ public abstract class CustomReward(Player player) : Reward(player)
     /// </summary>
     public virtual void Initialize()
     {
-        if (DeserializeMethod != null)
+        if (DeserializeMethod.Target != null)
         {
-            if (DeserializeMethod.Target != null)
-            {
-                throw new ArgumentException($"DeserializeMethod of {GetType()} is not static");
-            }
-            BaseLibMain.Logger.Info($"Registering CustomReward deserializer for {GetType()}");
-            CustomRewardPatches.RegisterCustomReward(RewardType, DeserializeMethod);
+            throw new ArgumentException($"DeserializeMethod of {GetType()} is not static");
         }
-        else
-        {
-            throw new InvalidOperationException($"Custom Reward {GetType()} has not implemented a DeserializeMethod or overriden Initialize to register a deserializer for itself");
-        }
+        BaseLibMain.Logger.Info($"Registering CustomReward deserializer for {GetType()}");
+        CustomRewardPatches.RegisterCustomReward(RewardType, DeserializeMethod);
     }
 }
 

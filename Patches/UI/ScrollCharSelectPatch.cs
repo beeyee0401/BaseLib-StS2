@@ -11,8 +11,9 @@ namespace BaseLib.Patches.UI;
 class ScrollCharSelectPatch
 {
     private const int VisibleButtons = 8;
-    private static bool ScrollEnabled = ModelDb.AllCharacters.Count(character => character is not CustomCharacterModel
-        { HideFromVanillaCharacterSelect: true }) >= VisibleButtons - 1; //-1 to count random button
+    private static readonly int ButtonCount = ModelDb.AllCharacters.Count(character => character is not CustomCharacterModel
+        { HideFromVanillaCharacterSelect: true }) + 1; //+1 to count random button
+    private static readonly bool ScrollEnabled = ButtonCount >= VisibleButtons;
     
     [HarmonyPrefix]
     static void AdjustCharSelectButtons(NCharacterSelectScreen __instance)
@@ -27,7 +28,7 @@ class ScrollCharSelectPatch
 
         var horizontalScroll = NHorizontalScrollContainer.Create("CharSelectButtons", buttonContainer, control =>
         {
-            control.Size = control.CustomMinimumSize = new(116f * VisibleButtons, 200);
+            control.Size = control.CustomMinimumSize = new(Math.Min(116f * ButtonCount, 1800f), 200);
         });
         
         selectButtons.ReplaceBy(horizontalScroll);
@@ -42,16 +43,18 @@ class ScrollCharSelectPatch
     {
         if (!ScrollEnabled)
             return;
-        
+    
         var horizontalScroll = __instance.GetNode("CharSelectButtons") as NHorizontalScrollContainer;
         if (horizontalScroll == null)
             return;
-        
+    
         var buttonContainer = horizontalScroll.GetNode<Control>("ButtonContainer");
-        
+
+        horizontalScroll.CallDeferred(Node.MethodName.SetProcessInput, false);
+    
         foreach (var selectButton in buttonContainer.GetChildren().OfType<NCharacterSelectButton>())
-        {
             selectButton.MouseFilter = Control.MouseFilterEnum.Pass;
-        }
+
+        horizontalScroll.InitFocusScrolling();
     }
 }
