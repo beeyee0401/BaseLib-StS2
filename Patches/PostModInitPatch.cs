@@ -40,6 +40,12 @@ class PostModInitPatch
                 break;
             }
         }
+
+        if (_anyModModifiesGameplay)
+        {
+            //Register custom save data.
+            CardModifier.RegisterSave();
+        }
         
         CustomMessageWrapper.Initialize();
         CustomTargetedMessageWrapper.Initialize();

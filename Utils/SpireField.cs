@@ -47,27 +47,65 @@ public class SpireField<TKey, TVal> where TKey : class
     }
 }
 
-public class ReadonlySpireField<TKey, TVal> : SpireField<TKey, TVal> where TKey : class
+/// <summary>
+/// A SpireField containing an object whose value is guaranteed to not be null.
+/// </summary>
+public class NotNullSpireField<TKey, TVal> where TKey : class where TVal : class
+{
+    private readonly ConditionalWeakTable<TKey, TVal> _table = [];
+    private readonly Func<TKey, TVal> _defaultVal;
+    
+    public NotNullSpireField(Func<TVal> defaultVal)
+    {
+        _defaultVal = _ => defaultVal();
+    }
+
+    public NotNullSpireField(Func<TKey, TVal> defaultVal)
+    {
+        _defaultVal = defaultVal;
+    }
+    
+    public TVal this[TKey obj]
+    {
+        get => Get(obj);
+        set => Set(obj, value);
+    }
+
+    public TVal Get(TKey obj) {
+        if (_table.TryGetValue(obj, out var result)) return result;
+
+        var defaultVal = _defaultVal(obj);
+        _table.Add(obj, defaultVal);
+        return defaultVal;
+    }
+
+    public void Set(TKey obj, TVal val)
+    {
+        _table.AddOrUpdate(obj, val);
+    }
+}
+
+public class ReadonlySpireField<TKey, TVal> : NotNullSpireField<TKey, TVal> where TKey : class where TVal : class
 {
     /// <inheritdoc />
-    public ReadonlySpireField(Func<TVal?> defaultVal) : base(defaultVal)
+    public ReadonlySpireField(Func<TVal> defaultVal) : base(defaultVal)
     {
         
     }
 
     /// <inheritdoc />
-    public ReadonlySpireField(Func<TKey, TVal?> defaultVal) : base(defaultVal)
+    public ReadonlySpireField(Func<TKey, TVal> defaultVal) : base(defaultVal)
     {
         
     }
     
     /// <summary>
-    /// 
+    /// Throws an exception if called.
     /// </summary>
     [Obsolete("ReadonlySpireField cannot be set; exception will be thrown.")]
     public new void Set(TKey obj, TVal? val)
     {
-        throw new InvalidOperationException("The value of an AddedNode should not be set. Instead, modify the node already within the scene.");
+        throw new InvalidOperationException("The value of a ReadonlySpireField should not be set. If possible, modify its current value instead.");
     }
 }
 

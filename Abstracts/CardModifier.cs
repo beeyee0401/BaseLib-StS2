@@ -1,15 +1,16 @@
 ﻿using System.Collections.ObjectModel;
 using BaseLib.Extensions;
 using BaseLib.Patches.Localization;
+using BaseLib.Patches.Saves;
 using BaseLib.Utils;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Multiplayer.Serialization;
 
 namespace BaseLib.Abstracts;
 
-//TODO - save/load
 /// <summary>
 /// A model that is attached to a card to modify its behavior.
 /// Receives all combat hooks, and is capable of modifying the card's description.
@@ -17,6 +18,129 @@ namespace BaseLib.Abstracts;
 /// </summary>
 public abstract class CardModifier : AbstractModel
 {
+    public static void RegisterSave()
+    {
+        ExtendedSaveTypes.RegisterListSaveType<ModifierSave>();
+        ExtendedSaveTypes.RegisterDictionarySaveType<string, int>();
+        ExtendedSaveTypes.RegisterObjectSaveType<ModifierSave>(
+            ExtendedSaveTypes.PropertyFunc<ModifierSave, ModelId>("Id"), 
+            ExtendedSaveTypes.PropertyFunc<ModifierSave, Dictionary<string, int>>("IntProperties"),
+        ExtendedSaveTypes.PropertyFunc<ModifierSave, Dictionary<string, string>>("AdditionalProperties"));
+        
+        
+        ExtendedSerializableCard.RegisterCardSave("BaseLibCardModifiers", 
+            card => DirectModifiers(card).Select(mod => ModifierSave.FromModifier(mod)).ToList(),
+            LoadModifierSaves,
+            (saves, writer) =>
+            {
+                writer.WriteInt(saves.Count);
+                foreach (var save in saves)
+                {
+                    save.Serialize(writer);
+                }
+            },
+            (reader) =>
+            {
+                List<ModifierSave> saves = [];
+                int count = reader.ReadInt();
+                for (int i = 0; i < count; ++i)
+                {
+                    ModifierSave save = new();
+                    save.Deserialize(reader);
+                    saves.Add(save);
+                }
+
+                return saves;
+            });
+    }
+
+    public sealed class ModifierSave : IPacketSerializable
+    {
+        public static ModifierSave FromModifier(CardModifier modifier)
+        {
+            var save = new ModifierSave()
+            {
+                Id = modifier.Id
+            };
+            modifier.StoreSaveData(save);
+            return save;
+        }
+
+        public CardModifier ToRealMod(CardModel owner)
+        {
+            var mod = (CardModifier) ModelDb.GetById<CardModifier>(Id).MutableClone();
+            mod.Owner = owner;
+            mod.LoadSaveData(this);
+            return mod;
+        }
+        
+        public ModelId Id { get; set; }
+        public Dictionary<string, int> IntProperties { get; set; } = [];
+        public Dictionary<string, string> AdditionalProperties { get; set; } = [];
+
+        /// <inheritdoc />
+        public void Serialize(PacketWriter writer)
+        {
+            writer.WriteModelEntry(Id);
+            writer.WriteInt(IntProperties.Count);
+            foreach (var entry in IntProperties)
+            {
+                writer.WriteString(entry.Key);
+                writer.WriteInt(entry.Value);
+            }
+            writer.WriteInt(AdditionalProperties.Count);
+            foreach (var entry in AdditionalProperties)
+            {
+                writer.WriteString(entry.Key);
+                writer.WriteString(entry.Value);
+            }
+        }
+
+        /// <inheritdoc />
+        public void Deserialize(PacketReader reader)
+        {
+            reader.ReadModelIdAssumingType<CardModifier>();
+            
+            int capacity = reader.ReadInt();
+            IntProperties = new(capacity);
+            for (int index = 0; index < capacity; ++index)
+            {
+                var key = reader.ReadString();
+                IntProperties[key] = reader.ReadInt();
+            }
+
+            capacity = reader.ReadInt();
+            AdditionalProperties = new(capacity);
+            for (int index = 0; index < capacity; ++index)
+            {
+                var key = reader.ReadString();
+                AdditionalProperties[key] = reader.ReadString();
+            }
+        }
+    }
+
+
+    /// <summary>
+    /// Store values that must be saved in IntProperties or AdditionalProperties.
+    /// </summary>
+    public virtual void StoreSaveData(ModifierSave save)
+    {
+        
+    }
+    /// <summary>
+    /// Loads saved values into a new instance of this modifier.
+    /// </summary>
+    public virtual void LoadSaveData(ModifierSave save)
+    {
+        
+    }
+
+    private static void LoadModifierSaves(CardModel card, List<ModifierSave> modifiers)
+    {
+        _modifiers[card] = modifiers.Select(mod => mod.ToRealMod(card)).ToList();
+    }
+    
+    
     private static readonly SpireField<CardModel, List<CardModifier>> _modifiers = new(() => []);
     
     /// <summary>
@@ -84,6 +208,11 @@ public abstract class CardModifier : AbstractModel
         };
     }
 
+    /// <summary>
+    /// Mostly unused; overridden just in case.
+    /// </summary>
+    public override bool ShouldReceiveCombatHooks => true;
+    
     public CardModel? Owner
     {
         get; 
