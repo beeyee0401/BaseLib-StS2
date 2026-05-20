@@ -33,7 +33,7 @@ class AfterCardPlayedPatch
             if (PurgePatch.ShouldPurge(cardPlay.Card))
             {
                 var deckCard = cardPlay.Card.DeckVersion;
-                if (deckCard != null)
+                if (deckCard?.Pile?.Type == PileType.Deck) // Guard against Replay (first play sets Pile to null)
                 {
                     await CardPileCmd.RemoveFromDeck(deckCard, false);
                 }
