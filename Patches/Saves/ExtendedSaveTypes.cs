@@ -33,6 +33,15 @@ public class ExtendedSaveTypes
     {
         return MegaCritSerializerContext.Default.GetTypeInfo(t) != null;
     }
+
+    public static bool IsSaveHolderSupported(Type t)
+    {
+        return t.IsAssignableTo(typeof(CardModel))
+               || t.IsAssignableTo(typeof(RelicModel))
+               || t.IsAssignableTo(typeof(PotionModel))
+               || t.IsAssignableTo(typeof(Player))
+               || t.IsAssignableTo(typeof(Reward));
+    }
     
     /// <summary>
     /// Attempts to register a saved value. Returns false if the target type is unsupported.
