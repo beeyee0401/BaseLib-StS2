@@ -9,6 +9,7 @@ using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Multiplayer.Serialization;
 using MegaCrit.Sts2.Core.Rewards;
+using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves;
 using MegaCrit.Sts2.Core.Saves.Runs;
 
@@ -225,6 +226,7 @@ public static class ExtendedSavePatches
         AddContext<PotionModel, SerializablePotion>(harmony);
         AddContext<Reward, SerializableReward>(harmony);
         AddContext<Player, SerializablePlayer>(harmony);
+        AddContext<IRunState, SerializableRun>(harmony);
     }
 
     private static void AddContext<DataType, SerializableType>(Harmony harmony) where SerializableType : class
@@ -249,7 +251,7 @@ public static class ExtendedSavePatches
             __result = [..__result,
                 ..ExtendedSaveHandlers<DataType, SerializableType>.CreateExtendedProperties(options)
             ];
-            BaseLibMain.Logger.Info($"Added {__result.Length - oldCount} new properties to SerializableCard");
+            BaseLibMain.Logger.Info($"Added {__result.Length - oldCount} new properties to {typeof(SerializableType).Name}");
         }
     }
     
@@ -462,6 +464,126 @@ public static class ExtendedSavePatches
         {
             var extendedData = ExtendedSaveHandlers<Player, SerializablePlayer>.ExtendedData[__instance];
             foreach (var saveValue in ExtendedSaveHandlers<Player, SerializablePlayer>.RegisteredSaves)
+            {
+                saveValue.Deserializer(extendedData, reader);
+            }
+        }
+    }
+    
+    [HarmonyPatch(typeof(Reward), nameof(Reward.ToSerializable))]
+    static class PrepExtendedRewardData
+    {
+        [HarmonyPostfix]
+        static void ExtendedDataForReward(Reward __instance, SerializableReward __result)
+        {
+            var data = new ExtendedSaveHandlers<Reward, SerializableReward>.ExtendedSaveData(__instance);
+            ExtendedSaveHandlers<Reward, SerializableReward>.ExtendedData[__result] = data;
+        }
+    }
+
+    [HarmonyPatch(typeof(Reward), nameof(Reward.FromSerializable))]
+    static class LoadExtendedRewardData
+    {
+        [HarmonyPostfix]
+        static void LoadExtendedData(SerializableReward save, Reward __result)
+        {
+            ExtendedSaveHandlers<Reward, SerializableReward>.Load(save, __result);
+        }
+    }
+
+    [HarmonyPatch(typeof(SerializableReward), nameof(SerializableReward.Serialize))]
+    static class SerializeExtendedRewardData
+    {
+        [HarmonyPostfix]
+        static void WriteExtended(SerializableReward __instance, PacketWriter writer)
+        {
+            var extendedData = ExtendedSaveHandlers<Reward, SerializableReward>.ExtendedData[__instance];
+            foreach (var saveValue in ExtendedSaveHandlers<Reward, SerializableReward>.RegisteredSaves)
+            {
+                saveValue.Serializer(extendedData, writer);
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(SerializableReward), nameof(SerializableReward.Deserialize))]
+    static class DeserializeExtendedRewardData
+    {
+        [HarmonyPostfix]
+        static void ReadExtended(SerializableReward __instance, PacketReader reader)
+        {
+            var extendedData = ExtendedSaveHandlers<Reward, SerializableReward>.ExtendedData[__instance];
+            foreach (var saveValue in ExtendedSaveHandlers<Reward, SerializableReward>.RegisteredSaves)
+            {
+                saveValue.Deserializer(extendedData, reader);
+            }
+        }
+    }
+    
+    [HarmonyPatch(typeof(RunManager), nameof(RunManager.ToSave))]
+    static class PrepExtendedRunData
+    {
+        [HarmonyPostfix]
+        static void ExtendedDataForRun(RunManager __instance, SerializableRun __result)
+        {
+            var data = new ExtendedSaveHandlers<IRunState, SerializableRun>.ExtendedSaveData(__instance.State!);
+            ExtendedSaveHandlers<IRunState, SerializableRun>.ExtendedData[__result] = data;
+        }
+    }
+    
+    [HarmonyPatch(typeof(RunManager), nameof(RunManager.CanonicalizeSave))]
+    static class CanonicalizeExtendedRunData
+    {
+        [HarmonyPostfix]
+        static void CanonicalizeExtendedData(RunManager __instance, SerializableRun __result)
+        {
+            var data = new ExtendedSaveHandlers<IRunState, SerializableRun>.ExtendedSaveData(__instance.State!);
+            ExtendedSaveHandlers<IRunState, SerializableRun>.ExtendedData[__result] = data;
+        }
+    }
+
+    [HarmonyPatch(typeof(RunState), nameof(RunState.FromSerializable))]
+    static class LoadExtendedRunData
+    {
+        [HarmonyPostfix]
+        static void LoadExtendedData(SerializableRun save, RunState __result)
+        {
+            ExtendedSaveHandlers<IRunState, SerializableRun>.Load(save, __result);
+        }
+    }
+
+    [HarmonyPatch(typeof(SerializableRun), nameof(SerializableRun.Anonymized))]
+    static class CopyExtendedRunData
+    {
+        [HarmonyPostfix]
+        static void CopyExtended(SerializableRun __instance, SerializableRun __result)
+        {
+            ExtendedSaveHandlers<IRunState, SerializableRun>.ExtendedData[__result] = 
+                ExtendedSaveHandlers<IRunState, SerializableRun>.ExtendedData[__instance];
+        }
+    }
+
+    [HarmonyPatch(typeof(SerializableRun), nameof(SerializableRun.Serialize))]
+    static class SerializeExtendedRunData
+    {
+        [HarmonyPostfix]
+        static void WriteExtended(SerializableRun __instance, PacketWriter writer)
+        {
+            var extendedData = ExtendedSaveHandlers<IRunState, SerializableRun>.ExtendedData[__instance];
+            foreach (var saveValue in ExtendedSaveHandlers<IRunState, SerializableRun>.RegisteredSaves)
+            {
+                saveValue.Serializer(extendedData, writer);
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(SerializableRun), nameof(SerializableRun.Deserialize))]
+    static class DeserializeExtendedRunData
+    {
+        [HarmonyPostfix]
+        static void ReadExtended(SerializableRun __instance, PacketReader reader)
+        {
+            var extendedData = ExtendedSaveHandlers<IRunState, SerializableRun>.ExtendedData[__instance];
+            foreach (var saveValue in ExtendedSaveHandlers<IRunState, SerializableRun>.RegisteredSaves)
             {
                 saveValue.Deserializer(extendedData, reader);
             }

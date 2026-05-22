@@ -6,6 +6,7 @@ using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Multiplayer.Serialization;
 using MegaCrit.Sts2.Core.Rewards;
+using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves;
 using MegaCrit.Sts2.Core.Saves.Runs;
 
@@ -126,6 +127,22 @@ public class ExtendedSaveTypes
         if (targetType.IsAssignableTo(typeof(Reward)))
         {
             ExtendedSaveHandlers<Reward, SerializableReward>.RegisterSave<T>(id,
+                reward =>
+                {
+                    if (reward is not TargetType target) return default;
+                    return getter(target);
+                },
+                (reward, val) =>
+                {
+                    if (reward is not TargetType target) return;
+                    setter(target, val);
+                }, serializer, deserializer);
+
+            return true;
+        }
+        if (targetType.IsAssignableTo(typeof(IRunState)))
+        {
+            ExtendedSaveHandlers<IRunState, SerializableRun>.RegisterSave<T>(id,
                 reward =>
                 {
                     if (reward is not TargetType target) return default;
