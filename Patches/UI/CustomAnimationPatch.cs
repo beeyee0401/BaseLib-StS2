@@ -21,27 +21,7 @@ static class CustomAnimationPatch
         {
             if (CustomAnimation.HasCustomAnimation(__instance))
             {
-                __result = Math.Min(character.DeathAnimTime, 30f);
-            }
-        }
-    }
-    
-    //Waits for death animation to finish playing and removes UI
-    [HarmonyPatch(typeof(NCreature), nameof(NCreature.AnimDie), MethodType.Async)]
-    [HarmonyTranspiler]
-    static IEnumerable<CodeInstruction> CustomAnimDie(ILGenerator generator, IEnumerable<CodeInstruction> instructions, MethodBase original)
-    {
-        return AsyncMethodCall.Create(generator, instructions, original, 
-            AccessTools.Method(typeof(CustomAnimationPatch), nameof(WaitCustomAnim)), beforeState: original);
-    }
-
-    static async Task WaitCustomAnim(NCreature __instance)
-    {
-        if (CustomAnimation.PlayCustomAnimation(__instance, CreatureAnimator.deathTrigger, "die"))
-        {
-            if (__instance.Entity.Player?.Character is CustomCharacterModel character)
-            {
-                await Cmd.Wait(character.DeathAnimTime);
+                __result = Math.Min(character.DeathAnimTime, 5f);
             }
         }
     }
