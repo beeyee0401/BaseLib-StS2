@@ -1,7 +1,11 @@
-﻿using BaseLib.Abstracts;
+﻿using System.Reflection;
+using System.Reflection.Emit;
+using BaseLib.Abstracts;
 using BaseLib.Utils;
+using BaseLib.Utils.Patching;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Animation;
+using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Nodes.Combat;
 
 namespace BaseLib.Patches.UI;
@@ -18,6 +22,26 @@ static class CustomAnimationPatch
             if (CustomAnimation.HasCustomAnimation(__instance))
             {
                 __result = Math.Min(character.DeathAnimTime, 5f);
+            }
+        }
+    }
+    
+    //Waits for death animation to finish playing and removes UI
+    [HarmonyPatch(typeof(NCreature), nameof(NCreature.AnimDie), MethodType.Async)]
+    [HarmonyTranspiler]
+    static IEnumerable<CodeInstruction> CustomAnimDie(ILGenerator generator, IEnumerable<CodeInstruction> instructions, MethodBase original)
+    {
+        return AsyncMethodCall.Create(generator, instructions, original, 
+            AccessTools.Method(typeof(CustomAnimationPatch), nameof(WaitCustomAnim)), beforeState: original);
+    }
+
+    static async Task WaitCustomAnim(NCreature __instance, CancellationToken cancelToken)
+    {
+        if (CustomAnimation.PlayCustomAnimation(__instance, CreatureAnimator.deathTrigger, "die"))
+        {
+            if (__instance.Entity.Player?.Character is CustomCharacterModel character)
+            {
+                await Cmd.Wait(Math.Min(character.DeathAnimTime, 5f), cancelToken, true);
             }
         }
     }
