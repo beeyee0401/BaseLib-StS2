@@ -26,9 +26,8 @@ namespace BaseLib.Patches;
 class PostModInitPatch
 {
     private static bool _initialized = false;
-    private static bool _anyModModifiesGameplay = false;
-    public static bool CanModifyGameplay => _anyModModifiesGameplay;
-    
+    public static bool CanModifyGameplay { get; private set; } = false;
+
     [HarmonyPrefix]
     private static void PostModInit()
     {
@@ -41,12 +40,17 @@ class PostModInitPatch
         {
             if (mod.manifest?.affectsGameplay == true)
             {
-                _anyModModifiesGameplay = true;
+                if (BetaMainCompatibility._ModManifest.HasDependency(mod.manifest, "BaseLib"))
+                {
+                    BaseLibMain.Logger.Info($"Mod {mod.manifest.id} that modifies gameplay has BaseLib dependency; gameplay modification enabled.");
+                    CanModifyGameplay = true;
+                }
+
                 break;
             }
         }
 
-        if (_anyModModifiesGameplay)
+        if (CanModifyGameplay)
         {
             //Register custom save data.
             CardModifier.RegisterSave();

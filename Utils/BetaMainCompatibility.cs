@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Collections;
+using System.Reflection;
 using BaseLib.Extensions;
 using Godot;
 using HarmonyLib;
@@ -159,6 +160,45 @@ public class BetaMainCompatibility
             {
                 return FromPowerDef.InvokeGeneric<IHoverTip, T>(null)!;
             }
+        }
+    }
+
+    public static class _ModManifest
+    {
+        private static readonly FieldInfo DependencyField = typeof(ModManifest).DeclaredField("dependencies");
+        
+        public static bool HasDependency(ModManifest modManifest, string dependencyId)
+        {
+            var dependencies = DependencyField.GetValue(modManifest);
+            if (dependencies == null) return false;
+
+            if (dependencies is List<string> stringList)
+            {
+                return stringList.Contains(dependencyId);
+            }
+
+            try
+            {
+                var dependenciesType = dependencies.GetType();
+                if (!dependenciesType.IsConstructedGenericType) return false;
+                if (dependencies is not IList untypedList) return false;
+                
+                var idField = dependenciesType.GenericTypeArguments[0].GetField("id");
+                if (idField == null) return false;
+
+                foreach (var dependency in untypedList)
+                {
+                    var idValue = idField.GetValue(dependency);
+                    if (idValue is string s && s == dependencyId)
+                        return true;
+                }
+            }
+            catch (Exception e)
+            {
+                BaseLibMain.Logger.Error(e.Message);
+            }
+
+            return false;
         }
     }
 }
