@@ -4,6 +4,8 @@ using BaseLib.Utils;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Nodes.Screens.CardLibrary;
+using MegaCrit.Sts2.Core.Saves;
 
 namespace BaseLib.Abstracts;
 
@@ -66,6 +68,23 @@ public abstract class CustomCardPoolModel : CardPoolModel, ICustomModel, ICustom
     /// </summary>
     public virtual string? BigEnergyIconPath => null;
     public virtual string? TextEnergyIconPath => null;
+
+    /// <summary>
+    /// Override to true if all cards in this pool should automatically be marked as seen in the compendium
+    /// </summary>
+    public virtual bool SeenByDefault => false;
+}
+
+[HarmonyPatch(typeof(NCardLibraryGrid), "RefreshVisibility")]
+static class CustomCardPoolMarkAsSeenPatch
+{
+    [HarmonyPrefix]
+    public static void MarkAllAsSeen()
+    {
+        foreach (var cardPool in ModelDb.AllCardPools)
+            if (cardPool is CustomCardPoolModel customCardPool && customCardPool.SeenByDefault)
+                foreach (var card in cardPool.AllCards) SaveManager.Instance.MarkCardAsSeen(card);
+    }
 }
 
 [HarmonyPatch(typeof(CardPoolModel), "FrameMaterial", MethodType.Getter)]
