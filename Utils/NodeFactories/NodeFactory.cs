@@ -54,7 +54,7 @@ public abstract class NodeFactory
             return;
         }
 
-        if (!scenePath.StartsWith("res://") && !scenePath.StartsWith("user://"))
+        if (!scenePath.StartsWith("res://") && !scenePath.StartsWith("user://") && !scenePath.StartsWith("uid://"))
         {
             BaseLibMain.Logger.Warn($"Registering non-res or user path '{scenePath}'; assuming res path");
             scenePath = "res://" + scenePath;

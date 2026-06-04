@@ -4,7 +4,9 @@ using BaseLib.Patches.Localization;
 using BaseLib.Patches.Saves;
 using BaseLib.Utils;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
+using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Multiplayer.Serialization;
@@ -17,8 +19,18 @@ namespace BaseLib.Abstracts;
 /// Receives all combat hooks, and is capable of modifying the card's description.
 /// More features to be added in the future.
 /// </summary>
-public abstract class CardModifier : AbstractModel
+public abstract class CardModifier : AbstractModel, IComparable<CardModifier>
 {
+    /// <summary>
+    /// Obtains a new instance of a CardModifier from ModelDb using <see cref="ModelDbExtensions.CardModifier"/>.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public static T Get<T>() where T : CardModifier
+    {
+        return ModelDb.CardModifier<T>();
+    }
+    
     public static void RegisterSave()
     {
         ExtendedSaveTypes.RegisterListSaveType<ModifierSave>();
@@ -161,17 +173,14 @@ public abstract class CardModifier : AbstractModel
     /// </summary>
     public static void AddModifier(CardModel card, CardModifier modifier)
     {
-        DirectModifiers(card).Add(modifier);
-        modifier.Owner = card;
+        modifier.ApplyInternal(card);
     }
 
     public static bool RemoveModifier(CardModel card, CardModifier modifier)
     {
-        if (modifier.Owner == card)
-            modifier.Owner = null;
-        return DirectModifiers(card).Remove(modifier);
+        return modifier.RemoveInternal(card);
     }
-    
+
     static CardModifier()
     {
         ModHelper.SubscribeForCombatStateHooks("BaseLibCardModifiers",
@@ -219,6 +228,26 @@ public abstract class CardModifier : AbstractModel
         get; 
         private set;
     }
+    
+    private void ApplyInternal(CardModel card)
+    {
+        DirectModifiers(card).InsertSorted(this);
+        Owner = card;
+        OnInitialApplication();
+    }
+
+    private bool RemoveInternal(CardModel card)
+    {
+        if (Owner == card)
+            Owner = null;
+        return DirectModifiers(card).Remove(this);
+    }
+
+    /// <summary>
+    /// Affects the ordering of card modifiers when they are added to a card.
+    /// Lower priority means the card modifier will be inserted before card modifiers of higher priority.
+    /// </summary>
+    public int Priority { get; set; } = 0;
 
     /// <summary>
     /// Modifies a card's description before the game processes it.
@@ -239,11 +268,34 @@ public abstract class CardModifier : AbstractModel
     }
 
     /// <summary>
+    /// Called after the modifier is applied to a card, including when a card is copied.
+    /// Due to nature of when this occurs, async combat effects should not occur here.
+    /// </summary>
+    public virtual void OnInitialApplication()
+    {
+        
+    }
+
+    /// <summary>
     /// Called after the card modifier is cloned and added to a clone of a card.
+    /// Called whenever a MutableClone is created.
     /// </summary>
     public virtual void AfterClonedOnCard(CardModel card)
     {
         
+    }
+    
+    /// <summary>
+    /// Called after the card's OnPlay method is called. Occurs before normal AfterCardPlayed hook.
+    /// </summary>
+    public virtual Task OnPlay(PlayerChoiceContext choiceContext, CardPlay cardPlay)
+    {
+        return Task.CompletedTask;
+    }
+
+    int IComparable<CardModifier>.CompareTo(CardModifier? other)
+    {
+        return Priority.CompareTo(other?.Priority ?? 0);
     }
 }
 

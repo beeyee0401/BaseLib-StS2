@@ -4,7 +4,7 @@ using HarmonyLib;
 using MegaCrit.Sts2.Core.Nodes.Audio;
 using MegaCrit.Sts2.Core.TestSupport;
 
-namespace BaseLib.Patches.Utils;
+namespace BaseLib.Patches.Audio;
 
 static class PlayResourcePatch
 {
@@ -17,7 +17,8 @@ static class PlayResourcePatch
         {
             if (TestMode.IsOn) return true;
 
-            if (path.StartsWith("res://") && ResourceLoader.Exists(path))
+            if ((path.StartsWith("res://") || path.StartsWith("user://") || path.StartsWith("uid://"))
+                && ResourceLoader.Exists(path))
             {
                 ModAudio.PlaySoundInRun(path, volumeMult: volume);
                 return false;
@@ -35,7 +36,8 @@ static class PlayResourcePatch
         {
             if (TestMode.IsOn) return true;
 
-            if (music.StartsWith("res://") && ResourceLoader.Exists(music))
+            if ((music.StartsWith("res://") || music.StartsWith("user://") || music.StartsWith("uid://"))
+                && ResourceLoader.Exists(music))
             {
                 ModAudio.PlaySoundInRun(new ModSound(music, ModAudio.SoundType.Music));
                 return false;

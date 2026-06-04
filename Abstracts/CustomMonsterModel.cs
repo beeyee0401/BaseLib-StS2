@@ -1,4 +1,5 @@
 ﻿using BaseLib.Extensions;
+using BaseLib.Patches.Content;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Animation;
 using MegaCrit.Sts2.Core.Bindings.MegaSpine;
@@ -9,6 +10,11 @@ namespace BaseLib.Abstracts;
 
 public abstract class CustomMonsterModel : MonsterModel, ICustomModel, ISceneConversions
 {
+    public CustomMonsterModel()
+    {
+        CustomContentDictionary.RegisterType(GetType());
+    }
+    
     /// <summary>
     /// Override this or place your scene at res://scenes/creature_visuals/modname-class_name.tscn
     /// </summary>

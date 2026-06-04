@@ -64,6 +64,7 @@ public static class CustomAnimation
         {
             foreach (var name in animNames)
             {
+                BaseLibMain.Logger.Debug($"Checking for animation {name}");
                 if (animationTree.HasAnimation(name))
                 {
                     stateMachine.Travel(name);
@@ -82,6 +83,7 @@ public static class CustomAnimation
         {
             foreach (var name in animNames)
             {
+                BaseLibMain.Logger.Debug($"Checking for animation {name}");
                 if (animPlayer.HasAnimation(name))
                 {
                     if (animPlayer.CurrentAnimation.Equals(name))
@@ -103,6 +105,7 @@ public static class CustomAnimation
         {
             foreach (var name in animNames)
             {
+                BaseLibMain.Logger.Debug($"Checking for animation {name}");
                 if (animSprite.SpriteFrames.HasAnimation(name))
                 {
                     animSprite.Play(name);

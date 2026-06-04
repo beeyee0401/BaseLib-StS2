@@ -1,11 +1,12 @@
 using System.Reflection;
 using BaseLib.Abstracts;
+using BaseLib.Patches.Content;
 using BaseLib.Utils.NodeFactories;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Models;
 
-namespace BaseLib.Patches.Content;
+namespace BaseLib.Patches.UI;
 
 /// <summary>
 /// Patches the non-generic PackedScene.Instantiate so that registered scenes

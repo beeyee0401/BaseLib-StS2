@@ -142,7 +142,7 @@ public abstract class CustomTemporaryPowerModel : CustomPowerModel, ITemporaryPo
 
     public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
     {
-        if (!participants.Contains(Owner))
+        if (participants.Contains(Owner) == UntilEndOfOtherSideTurn)
             return;
         
         if (InternallyAppliedPower is CustomTemporaryPowerModel)
@@ -150,9 +150,7 @@ public abstract class CustomTemporaryPowerModel : CustomPowerModel, ITemporaryPo
             await PowerCmd.Remove(this);
             return;
         }
-        
-        if ((!UntilEndOfOtherSideTurn && side != Owner.Side) || (UntilEndOfOtherSideTurn && side == Owner.Side))
-            return;
+
         if (DynamicVars.Repeat.BaseValue > 0)
         {
             DynamicVars.Repeat.UpgradeValueBy(-1);

@@ -1,11 +1,13 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
+using BaseLib.Abstracts;
 using BaseLib.Cards.Variables;
 using BaseLib.Patches.Features;
 using BaseLib.Utils.Patching;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Cards;
+using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Hooks;
 
 namespace BaseLib.Patches.Hooks;
@@ -20,10 +22,15 @@ class AfterCardPlayedPatch
             AccessTools.Method(typeof(AfterCardPlayedPatch), nameof(BeforeAfterPlayHooks)), beforeState: original);
     }
 
-    private static async Task BeforeAfterPlayHooks(CardPlay cardPlay)
+    private static async Task BeforeAfterPlayHooks(PlayerChoiceContext choiceContext, CardPlay cardPlay)
     {
         if (PostModInitPatch.CanModifyGameplay)
         {
+            foreach (var modifier in  CardModifier.Modifiers(cardPlay.Card))
+            {
+                await modifier.OnPlay(choiceContext, cardPlay);
+            }
+            
             var refundAmount = cardPlay.Card.DynamicVars.TryGetValue(RefundVar.Key, out var val) ? val.IntValue : 0;
             if (refundAmount > 0 && cardPlay.Resources.EnergySpent > 0)
             {
