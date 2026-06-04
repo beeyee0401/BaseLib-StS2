@@ -149,6 +149,17 @@ public class BetaMainCompatibility
                 [],
                 m => m.IsGenericMethod)
             );
+        
+        private static VariableMethod FromPowerInstanceDef = new(
+            (typeof(HoverTipFactory), "FromPower",
+                [typeof(PowerModel), typeof(int?)],
+                [0, 1],
+                m => !m.IsGenericMethod),
+            (typeof(HoverTipFactory), "FromPower",
+                [typeof(PowerModel)],
+                [0],
+                m => !m.IsGenericMethod)
+        );
 
         public static IHoverTip FromPower<T>() where T : PowerModel
         {
@@ -160,6 +171,11 @@ public class BetaMainCompatibility
             {
                 return FromPowerDef.InvokeGeneric<IHoverTip, T>(null)!;
             }
+        }
+
+        public static IHoverTip FromPower(PowerModel power, int? amount = null)
+        {
+            return FromPowerInstanceDef.Invoke<IHoverTip>(null, [power, amount])!;
         }
     }
 
@@ -319,12 +335,20 @@ public class VariableMethod
     
     public void Invoke(object? instance, params object?[] args)
     {
-        _method!.Invoke(instance, args);
+        var finalArgs = new object?[_paramIndicies.Length];
+        for (int i = 0; i < _paramIndicies.Length; ++i)
+            finalArgs[i] = args[_paramIndicies[i]];
+        
+        _method!.Invoke(instance, finalArgs);
     }
     
     public T? Invoke<T>(object? instance, params object?[] args)
     {
-        return (T?) _method!.Invoke(instance, args);
+        var finalArgs = new object?[_paramIndicies.Length];
+        for (int i = 0; i < _paramIndicies.Length; ++i)
+            finalArgs[i] = args[_paramIndicies[i]];
+        
+        return (T?) _method!.Invoke(instance, finalArgs);
     }
     public TReturn? InvokeGeneric<TReturn, TGeneric>(object? instance, params object?[] args)
     {
