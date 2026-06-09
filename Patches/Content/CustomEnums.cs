@@ -246,8 +246,11 @@ class GenEnumValues
     [HarmonyPrefix]
     static void FindAndGenerate()
     {
+        var modTypes = ReflectionHelper.ModTypes;
+        BaseLibMain.Logger.Info($"Starting custom enum generation for {modTypes.Length} modded types");
+        
         List<FieldInfo> customEnumFields = [];
-        foreach (var t in ReflectionHelper.ModTypes)
+        foreach (var t in modTypes)
         {
             var fields = t.GetFields().Where(field => Attribute.IsDefined(field, typeof(CustomEnumAttribute)));
 
@@ -287,7 +290,7 @@ class GenEnumValues
             var t = field.DeclaringType;
             if (t == null) continue;
             
-            //BaseLibMain.Logger.Info($"Generated value {Convert.ToString((long)Convert.ChangeType(key, TypeCode.Int64), 2)} for field {field.Name} of enum {t.FullName}");
+            BaseLibMain.Logger.Debug($"Generated value {Convert.ChangeType(key, TypeCode.Int64)} for field {field.Name} of enum {t.FullName}");
             field.SetValue(null, key);
 
             if (!CustomEnums.GeneratedCustomEnumEntries.TryGetValue(field.FieldType, out var dict))

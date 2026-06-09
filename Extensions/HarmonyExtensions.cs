@@ -18,16 +18,18 @@ public static class HarmonyExtensions
         {
             var patchProcessors = AccessTools.GetTypesFromAssembly(assembly)
                 .Where(type => type.HasHarmonyAttribute())
-                .Select(harmony.CreateClassProcessor);
+                .Select<Type, (Type, PatchClassProcessor)>(type => new (type, harmony.CreateClassProcessor(type)));
 
             var successCount = 0;
             var failCount = 0;
-            patchProcessors.DoIf(processor => category?.Equals(processor.Category) ?? string.IsNullOrEmpty(processor.Category),
-                delegate(PatchClassProcessor processor)
+            patchProcessors.DoIf(processor => 
+                    category?.Equals(processor.Item2.Category) ?? string.IsNullOrEmpty(processor.Item2.Category),
+                delegate((Type, PatchClassProcessor) processor)
                 {
                     try
                     {
-                        processor.Patch();
+                        processor.Item2.Patch();
+                        BaseLibMain.Logger.Debug($"Patch {processor.Item1.FullName} successful.");
                         ++successCount;
                     }
                     catch (Exception e)
