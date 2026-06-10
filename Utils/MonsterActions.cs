@@ -19,7 +19,7 @@ public static class MonsterActions
     /// <summary>
     /// Applies the power specified as the generic parameter to the calling monster.
     /// </summary>
-    public static async Task<T?> ApplySelf<T>(MonsterModel monster, int amount, PlayerChoiceContext? context = null, bool silent = false) where T : PowerModel
+    public static async Task<T?> ApplySelf<T>(MonsterModel monster, decimal amount, PlayerChoiceContext? context = null, bool silent = false) where T : PowerModel
     {
         return await BetaMainCompatibility.PowerCmd_.Apply.InvokeGeneric<Task<T?>, T>
             (null, context ?? new ThrowingPlayerChoiceContext(), monster.Creature, amount, monster.Creature, null, silent)!;
@@ -28,9 +28,9 @@ public static class MonsterActions
     /// <summary>
     /// Applies the power specified as the generic parameter to the provided targets.
     /// </summary>
-    public static async Task<T?> Apply<T>(MonsterModel monster, int amount, IEnumerable<Creature> targets, PlayerChoiceContext? context = null, bool silent = false) where T : PowerModel
+    public static async Task<IReadOnlyList<T>> Apply<T>(MonsterModel monster, decimal amount, IEnumerable<Creature> targets, PlayerChoiceContext? context = null, bool silent = false) where T : PowerModel
     {
-        return await BetaMainCompatibility.PowerCmd_.ApplyMulti.InvokeGeneric<Task<T?>, T>
+        return await BetaMainCompatibility.PowerCmd_.ApplyMulti.InvokeGeneric<Task<IReadOnlyList<T>>, T>
             (null, context ?? new ThrowingPlayerChoiceContext(), targets, amount, monster.Creature, null, silent)!;
     }
 }
