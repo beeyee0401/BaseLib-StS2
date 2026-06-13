@@ -1,6 +1,8 @@
 ﻿using BaseLib.Extensions;
 using BaseLib.Utils.Patching;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.Entities.Cards;
+using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Models;
 
@@ -8,7 +10,8 @@ namespace BaseLib.Patches.Localization;
 
 class AddVarsToCard
 {
-    [HarmonyPatch(typeof(CardModel), nameof(CardModel.GetDescriptionForPile))]
+    [HarmonyPatch(typeof(CardModel), nameof(CardModel.GetDescriptionForPile),
+        typeof(PileType), typeof(CardModel.DescriptionPreviewType), typeof(Creature))]
     static class AddVarsToCardDescription
     {
         [HarmonyTranspiler]
