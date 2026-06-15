@@ -6,6 +6,7 @@ using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Audio.Debug;
 using MegaCrit.Sts2.Core.Commands.Builders;
+using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Helpers;
@@ -16,6 +17,7 @@ using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Nodes.HoverTips;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
 using MegaCrit.Sts2.Core.Nodes.Vfx;
+using MegaCrit.Sts2.Core.Runs;
 
 namespace BaseLib.Patches.Features;
 
@@ -62,6 +64,12 @@ public static class CustomTargetType
 
     /// <summary>Targets all enemies at full HP.</summary>
     [CustomEnum] public static TargetType AllFullLifeEnemies;
+    
+    /// <summary>Targets any of YOUR pets or yourself.</summary>
+    [CustomEnum] public static TargetType PetOrSelf;
+    
+    /// <summary>Targets any of YOUR pets.</summary>
+    [CustomEnum] public static TargetType Pet;
     
     internal static readonly Dictionary<TargetType, Func<Creature, bool>> SingleTargeting = new();
     internal static readonly Dictionary<TargetType, Func<Creature, bool>> MultiTargeting = new();
@@ -175,7 +183,12 @@ internal static class ModelDbTargetTypeInitPatch
         CustomTargetType.RegisterSingleTargetType(CustomTargetType.AnyFullLifeEnemy,
             target => target is { IsAlive: true, IsEnemy: true}  && target.CurrentHp == target.MaxHp);
         CustomTargetType.RegisterMultiTargetType(CustomTargetType.AllFullLifeEnemies,
-            target => target is { IsAlive: true, IsEnemy: true} && target.CurrentHp == target.MaxHp); 
+            target => target is { IsAlive: true, IsEnemy: true} && target.CurrentHp == target.MaxHp);
+        
+        CustomTargetType.RegisterSingleTargetType(CustomTargetType.PetOrSelf,
+            target => (target.IsAlive && target.IsPet && LocalContext.IsMe(target.PetOwner?.Creature)) || LocalContext.IsMe(target));
+        CustomTargetType.RegisterSingleTargetType(CustomTargetType.Pet,
+            target => target.IsAlive && target.IsPet && LocalContext.IsMe(target.PetOwner?.Creature));
 
     }
 }
