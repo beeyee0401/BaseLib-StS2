@@ -245,9 +245,6 @@ internal static class CustomCharacterSortPatch
             }
         }
 
-        ModelDbCustomCharacters.CustomCharacters.Clear();
-        ModelDbCustomCharacters.CustomCharacters.AddRange(CustomContentDictionary.CustomCharacters);
-
         CustomCharacterUtils.TypesToSort = null;
     }
 }

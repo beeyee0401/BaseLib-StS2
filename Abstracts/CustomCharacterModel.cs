@@ -291,26 +291,6 @@ class EnergyCounterStarAnchorPatch
     }
 }
 
-public class ModelDbCustomCharacters
-{
-    [Obsolete("Replaced with CustomContentDictionary.CustomCharacters")]
-    public static readonly List<CustomCharacterModel> CustomCharacters = [];
-
-    [Obsolete("Replaced with CustomContentDictionary.AddCharacter")]
-    public static void Register(CustomCharacterModel character)
-    {
-        CustomContentDictionary.AddCharacter(character);
-        /*if (!CustomContentDictionary.RegisterType(character.GetType())) return;
-        
-        CustomCharacters.Add(character);
-        var cookie = character.CustomYummyCookie;
-        if (cookie != null)
-        {
-            RelicImageOverridePatch.AddOverride<YummyCookie>(cookie, (relic) => relic.IsMutable && character.Id.Equals(relic.Owner?.Character.Id));
-        }*/
-    }
-}
-
 [HarmonyPatch]
 class HideVanillaCharacterSelectCharactersPatch
 {
