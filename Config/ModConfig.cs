@@ -160,7 +160,7 @@ public abstract partial class ModConfig
     /// [<see cref="ConfigIgnoreAttribute">ConfigIgnore</see>] or
     /// [<see cref="ConfigIgnoreRestoreDefaultsAttribute">ConfigIgnoreRestoreDefaults</see>].
     /// </summary>
-    protected void RestoreDefaultsNoConfirm()
+    protected virtual void RestoreDefaultsNoConfirm()
     {
         foreach (var property in ConfigProperties)
         {
