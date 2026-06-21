@@ -190,8 +190,6 @@ public partial class NLogWindow : Window
     {
         base._Process(delta);
         
-        BaseLibMain.Logger.Info("AAAAA");
-        
         _timeSinceRefresh += delta;
         if (!_needsRefresh || !Visible || Mode == ModeEnum.Minimized) return;
         if (_timeSinceRefresh < 1d / 30d) return;
