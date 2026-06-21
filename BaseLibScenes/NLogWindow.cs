@@ -15,10 +15,20 @@ public partial class NLogWindow : Window
     private static ImmutableList<NLogWindow> _listeners = ImmutableList<NLogWindow>.Empty;
     private static bool _openedOnErr = false;
 
-    private static List<string> _fullLog = [];
+    // Hard cap on retained log lines. Must comfortably exceed the max display size
+    // (the LimitedLogSize slider tops out at 2048) so RegenText always has enough history.
+    private const int MaxBufferedLines = 8192;
+    // Trim in chunks so the front-removal cost is amortized to ~O(1) per added line.
+    private const int TrimChunk = 1024;
+
+    private static readonly List<string> _fullLog = [];
+    // Logical index of _fullLog[0] (i.e. how many lines have been dropped off the front).
+    private static int _logBaseIndex = 0;
+    // Logical total line count ever seen = _logBaseIndex + _fullLog.Count. Monotonically increasing.
     private static int _fullLogCount = 0;
-    
+
     public int Limit { get; private set; } = BaseLibConfig.LimitedLogSize;
+    // Logical index of the next line this window needs to render.
     private int _writeIndex = 0;
 
     public static bool IsOpen => _listeners.Count > 0;
@@ -28,9 +38,17 @@ public partial class NLogWindow : Window
         lock (_logLock)
         {
             _fullLog.Add(msg);
-            _fullLogCount = _fullLog.Count;
+            if (_fullLog.Count > MaxBufferedLines + TrimChunk)
+            {
+                int remove = _fullLog.Count - MaxBufferedLines;
+                _fullLog.RemoveRange(0, remove);
+                _logBaseIndex += remove;
+            }
+            _fullLogCount = _logBaseIndex + _fullLog.Count;
         }
 
+        // SetDirty only sets a managed bool, so it is safe to call from the background
+        // threads the engine logs (and therefore this listener) can run on.
         foreach (var window in _listeners)
         {
             window.SetDirty();
@@ -222,18 +240,22 @@ public partial class NLogWindow : Window
     {
         _logLabel?.Clear();
         int validLineCount = 0;
-        
+
         lock (_logLock)
         {
-            for (_writeIndex = _fullLog.Count - 1; _writeIndex > 0; _writeIndex--)
+            // Default to rendering everything currently buffered. This also handles the
+            // empty-buffer case: _writeIndex == _fullLogCount, so UpdateText reads nothing.
+            _writeIndex = _logBaseIndex;
+
+            for (int i = _fullLog.Count - 1; i >= 0; i--)
             {
-                if (MatchesFilter(_fullLog[_writeIndex]))
+                if (!MatchesFilter(_fullLog[i])) continue;
+
+                ++validLineCount;
+                if (validLineCount >= BaseLibConfig.LimitedLogSize)
                 {
-                    ++validLineCount;
-                    if (validLineCount >= BaseLibConfig.LimitedLogSize)
-                    {
-                        break;
-                    }
+                    _writeIndex = _logBaseIndex + i; // logical index of this line
+                    break;
                 }
             }
         }
@@ -268,7 +290,14 @@ public partial class NLogWindow : Window
         while (_writeIndex < _fullLogCount)
         {
             string line;
-            lock (_logLock) line = _fullLog[_writeIndex];
+            lock (_logLock)
+            {
+                // If this window fell so far behind that its next line was already trimmed
+                // off the front, skip ahead to the oldest line still retained.
+                if (_writeIndex < _logBaseIndex) _writeIndex = _logBaseIndex;
+                if (_writeIndex >= _fullLogCount) break;
+                line = _fullLog[_writeIndex - _logBaseIndex];
+            }
             if (MatchesFilter(line))
             {
                 RenderLine(line, minLevel, _logLabel);
