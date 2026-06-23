@@ -54,11 +54,21 @@ public static class CardExtensions
 
     /// <summary>
     /// Convenience shortcut to <see cref="CardModifier.AddModifier"/>.
-    /// Adds a modifier to a card.
+    /// Adds a modifier to a card. Use this method if you need to perform setup on a mutable instance of the modifier.
+    /// Otherwise, use <see cref="AddModifier&lt;T&gt;"/>.
     /// </summary>
     public static void AddModifier(this CardModel card, CardModifier modifier)
     {
         CardModifier.AddModifier(card, modifier);
+    }
+    
+    /// <summary>
+    /// Convenience shortcut to <see cref="CardModifier.AddModifier&lt;T&gt;(CardModel, int)"/>.
+    /// Adds a card modifier to a card.
+    /// </summary>
+    public static void AddModifier<T>(this CardModel card, int amount = 0) where T : CardModifier
+    {
+        CardModifier.AddModifier<T>(card, amount);
     }
 
     /// <summary>
